@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # BrightVale Finance — Digital Banking & Investment Platform
 
 **Your Bright Path to Finance.**
@@ -108,3 +109,6 @@ frontend/
 - Balances are stored and moved only on the server; every movement writes a `Transaction` ledger entry.
 - Card issuance, crypto trading, and bank-rail payouts are integration boundaries — wire a PCI-compliant issuer / exchange / banking provider to activate them.
 - This repository is a development showcase.
+=======
+# bvf
+>>>>>>> 6ef20ff690ce03f7f51149b51742d6e51a581e51
