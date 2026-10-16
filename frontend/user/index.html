@@ -21,7 +21,7 @@
   </div>
   <script>
     (function () {
-      var API = 'http://localhost:5000/api';
+      var API = 'https://bvf.onrender.com/api';
       var token = null;
       try { token = localStorage.getItem('token'); } catch (e) { /* no storage */ }
       if (!token) { window.location.replace('../login.html'); return; }

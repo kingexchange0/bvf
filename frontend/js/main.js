@@ -51,8 +51,8 @@
   });
 })();
 
-const API_BASE_URL = 'http://localhost:5000/api';
-const SERVER_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = 'https://bvf.onrender.com/api';
+const SERVER_BASE_URL = 'https://bvf.onrender.com';
 
 // ---------------------------------------------------------------------------
 // Utility Functions
