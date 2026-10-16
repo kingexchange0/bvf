@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Invest - BrightVale Finance</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script>window.PAGE_CONFIG = { role: 'user', active: 'invest', title: 'Investment Plans' };</script>
+  <script src="../js/main.js"></script>
+  <style>
+    .invest-hero { display: flex; align-items: center; justify-content: space-between; gap: 16px; background: linear-gradient(135deg, var(--primary) 0%, #1D4ED8 100%); border-radius: var(--radius); padding: 22px 24px; color: #fff; }
+    .invest-hero .label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; opacity: .85; }
+    .invest-hero .value { font-family: var(--font-display); font-size: 30px; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .invest-hero .divider { width: 1px; height: 44px; background: rgba(255,255,255,.25); }
+    .plans-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+    .plan-card { position: relative; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); padding: 22px; display: flex; flex-direction: column; gap: 12px; transition: all .15s ease; }
+    .plan-card:hover { border-color: var(--primary); box-shadow: var(--shadow); }
+    .plan-card .plan-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .plan-card .plan-name { font-size: 16px; font-weight: 700; color: var(--text); }
+    .plan-card.popular { border-color: var(--primary); box-shadow: var(--shadow); background: linear-gradient(180deg, var(--primary-soft, #F0EAFB) 0%, var(--surface) 45%); }
+    .popular-badge { position: absolute; top: -10px; right: 16px; background: var(--gradient, linear-gradient(135deg, #6D28D9, #4C1D95)); color: #fff; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; padding: 4px 12px; border-radius: 999px; box-shadow: var(--shadow-sm, 0 2px 8px rgba(0,0,0,.15)); }
+    .plan-roi { font-family: var(--font-display); font-size: 30px; font-weight: 800; color: var(--primary); }
+    .plan-roi small { font-size: 12px; font-weight: 600; color: var(--text-2); }
+    .plan-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .plan-meta div { background: var(--surface-2); border-radius: var(--radius-sm); padding: 8px 10px; }
+    .plan-meta span { display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-3); }
+    .plan-meta b { font-size: 13px; color: var(--text); font-variant-numeric: tabular-nums; }
+    .plan-desc { font-size: 12px; color: var(--text-2); line-height: 1.5; min-height: 36px; }
+    .inv-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 0; }
+    .inv-item + .inv-item { border-top: 1px dashed var(--border); }
+    .inv-item .amt { font-family: var(--font-display); font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+    .inv-item .sub { font-size: 11px; color: var(--text-3); }
+  </style>
+</head>
+<body>
+  <main class="main-content" id="main">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Investment Plans</h1>
+        <p class="page-subtitle">Choose a plan and grow your balance with fixed daily returns.</p>
+      </div>
+    </div>
+
+    <div class="invest-hero mb-24 reveal">
+      <div>
+        <div class="label">Available Balance</div>
+        <div class="value" id="balanceValue">$0.00</div>
+      </div>
+      <div class="divider"></div>
+      <div>
+        <div class="label">Total Invested</div>
+        <div class="value" id="totalInvested">$0.00</div>
+      </div>
+      <div class="icon-wrap" style="margin-left:auto;"><i class="fas fa-chart-line" style="font-size:28px;opacity:.85;"></i></div>
+    </div>
+
+    <div class="card mb-16 reveal">
+      <div class="card-title mb-16"><i class="fas fa-layer-group"></i> Choose an Investment Plan</div>
+      <div id="plansWrap"><div class="text-small text-muted">Loading plans...</div></div>
+    </div>
+
+    <div class="card reveal">
+      <div class="card-header">
+        <div class="card-title">My Investments</div>
+        <a href="transactions.html" class="btn btn-ghost btn-xs">View all</a>
+      </div>
+      <div id="myInvestments"><div class="text-small text-muted">Loading...</div></div>
+    </div>
+  </main>
+
+  <!-- Invest modal -->
+  <div class="modal-overlay" id="investModal" style="display:none;">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Invest in <span id="modalPlanName"></span></div>
+        <button class="modal-close" onclick="modal.close('investModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Amount (USD) *</label>
+          <input type="number" class="input" id="investAmount" min="1" step="0.01" placeholder="Enter amount">
+          <div class="form-hint mt-8" id="amountHint"></div>
+        </div>
+        <div style="background:var(--surface-2);border-radius:var(--radius-sm);padding:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+          <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3);">Expected returns</div>
+          <div id="expectedReturns" style="font-family:var(--font-display);font-weight:700;color:var(--primary);font-size:14px;">—</div>
+        </div>
+        <div class="form-hint mt-8" style="font-size:12px;line-height:1.5;"><i class="fas fa-lock"></i> Funds are debited from your checking balance only after confirmation.</div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="modal.close('investModal')">Cancel</button>
+        <button class="btn btn-primary" id="confirmInvestBtn"><i class="fas fa-check"></i> Confirm Investment</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    if (!auth.isLoggedIn()) {
+      window.location.href = '../login.html';
+    }
+
+    let PLANS = [];
+    let selectedPlan = null;
+
+    function calcReturns() {
+      if (!selectedPlan) return;
+      const amt = parseFloat(document.getElementById('investAmount').value) || 0;
+      const total = amt + (amt * selectedPlan.ROI * selectedPlan.durationDays / 100);
+      document.getElementById('expectedReturns').textContent = amt > 0
+        ? utils.formatCurrency(total) + ' after ' + selectedPlan.durationDays + ' days'
+        : '—';
+    }
+
+    async function loadSummary() {
+      try {
+        const res = await api.get('/user/profile');
+        if (res && res.success && res.data) {
+          document.getElementById('balanceValue').textContent = utils.formatCurrency(res.data.balanceUSD || 0);
+        }
+      } catch (e) { /* keep default */ }
+      try {
+        const res = await api.get('/investments?limit=100');
+        if (res && res.success) {
+          const list = res.data || [];
+          const total = list.reduce(function (s, i) { return s + (i.amount || 0); }, 0);
+          document.getElementById('totalInvested').textContent = utils.formatCurrency(total);
+        }
+      } catch (e) { /* keep default */ }
+    }
+
+    async function loadPlans() {
+      const wrap = document.getElementById('plansWrap');
+      try {
+        const res = await api.get('/investment-plans');
+        if (!res || !res.success) { wrap.innerHTML = '<div class="text-small text-muted">Could not load investment plans.</div>'; return; }
+        PLANS = (res.data || []).filter(function (p) { return p.isActive !== false; });
+        if (!PLANS.length) {
+          wrap.innerHTML = '<div class="empty-state"><div class="empty-icon"><i class="fas fa-chart-pie"></i></div><div class="empty-hint">No investment plans are available right now. Please check back later.</div></div>';
+          return;
+        }
+        wrap.innerHTML = '<div class="plans-grid">' + PLANS.map(function (p, i) {
+          return '<div class="plan-card' + (i === 1 ? ' popular' : '') + '">' +
+            (i === 1 ? '<span class="popular-badge">Popular</span>' : '') +
+            '<div class="plan-head"><div class="plan-name">' + utils.escapeHtml(p.name) + '</div><span class="badge badge-primary">' + p.durationDays + ' days</span></div>' +
+            '<div class="plan-roi">' + p.ROI + '% <small>daily ROI</small></div>' +
+            '<div class="plan-meta">' +
+              '<div><span>Min. invest</span><b>' + utils.formatCurrency(p.minAmount) + '</b></div>' +
+              '<div><span>Max. invest</span><b>' + utils.formatCurrency(p.maxAmount) + '</b></div>' +
+              '<div><span>Duration</span><b>' + p.durationDays + ' days</b></div>' +
+              '<div><span>Plan type</span><b>Fixed term</b></div>' +
+            '</div>' +
+            (p.description ? '<div class="plan-desc">' + utils.escapeHtml(p.description) + '</div>' : '') +
+            '<div class="plan-desc" style="min-height:0;color:var(--text-3);"><i class="fas fa-chart-line"></i> Projected returns follow plan terms and prevailing market conditions.</div>' +
+            '<button class="btn btn-primary btn-block" onclick="openInvest(' + i + ')"><i class="fas fa-chart-line"></i> Invest in ' + utils.escapeHtml(p.name) + '</button>' +
+          '</div>';
+        }).join('') + '</div>';
+      } catch (e) {
+        wrap.innerHTML = '<div class="text-small text-muted">Could not load investment plans.</div>';
+      }
+    }
+
+    function openInvest(idx) {
+      selectedPlan = PLANS[idx];
+      document.getElementById('modalPlanName').textContent = selectedPlan.name;
+      document.getElementById('investAmount').value = '';
+      document.getElementById('amountHint').textContent = 'Min ' + utils.formatCurrency(selectedPlan.minAmount) + ' — Max ' + utils.formatCurrency(selectedPlan.maxAmount);
+      document.getElementById('expectedReturns').textContent = '—';
+      modal.open('investModal');
+    }
+
+    document.getElementById('investAmount').addEventListener('input', calcReturns);
+
+    document.getElementById('confirmInvestBtn').addEventListener('click', async function () {
+      const amt = parseFloat(document.getElementById('investAmount').value);
+      if (!amt || amt <= 0) { toast.error('Enter a valid amount'); return; }
+      const btn = this;
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Investing...';
+      try {
+        const res = await api.post('/investments', { planId: selectedPlan._id, amount: amt });
+        if (res && res.success) {
+          toast.success((res && res.message) || 'Investment successful');
+          modal.close('investModal');
+          loadSummary();
+          loadMyInvestments();
+        } else if (kycGate.isKycError(res)) {
+          modal.close('investModal');
+          kycGate.show(res.message);
+        } else {
+          toast.error((res && res.message) || 'Investment failed');
+        }
+      } catch (e) {
+        toast.error('Investment failed. Please try again.');
+      }
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-check"></i> Confirm Investment';
+    });
+
+    async function loadMyInvestments() {
+      const wrap = document.getElementById('myInvestments');
+      try {
+        const res = await api.get('/investments?limit=6');
+        if (!res || !res.success) { wrap.innerHTML = '<div class="text-small text-muted">Could not load investments.</div>'; return; }
+        const list = res.data || [];
+        if (!list.length) {
+          wrap.innerHTML = '<div class="empty-state" style="padding:20px 0;"><div class="empty-icon"><i class="fas fa-chart-pie"></i></div><div class="empty-hint">No investments yet. Select a plan above to start investing.</div></div>';
+          return;
+        }
+        wrap.innerHTML = list.map(function (inv) {
+          const planName = (inv.planId && inv.planId.name) || 'Plan';
+          const STATUS_CLS = { active: 'badge-info', completed: 'badge-success', pending: 'badge-warning', cancelled: 'badge-danger' };
+          const startStr = inv.startDate ? new Date(inv.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+          const endStr = inv.endDate ? new Date(inv.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+          const sub = utils.escapeHtml(planName) +
+            (startStr ? ' &middot; started ' + startStr : '') +
+            (endStr ? ' &middot; matures ' + endStr : '');
+          return '<div class="inv-item">' +
+            '<div><div class="amt">' + utils.formatCurrency(inv.amount) + '</div><div class="sub">' + sub + '</div>' +
+            (inv.expectedReturns ? '<div class="sub">Expected return: ' + utils.formatCurrency(inv.expectedReturns) + '</div>' : '') + '</div>' +
+            '<span class="badge ' + (STATUS_CLS[inv.status] || 'badge-muted') + '"><i class="fas fa-circle-check"></i> ' + utils.escapeHtml(inv.status || 'active') + '</span>' +
+          '</div>';
+        }).join('');
+      } catch (e) {
+        wrap.innerHTML = '<div class="text-small text-muted">Could not load investments.</div>';
+      }
+    }
+
+    loadSummary();
+    loadPlans();
+    loadMyInvestments();
+  </script>
+</body>
+</html>

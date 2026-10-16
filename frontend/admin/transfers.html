@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transfers - BrightVale Finance Admin</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script>window.PAGE_CONFIG = { role: 'admin', active: 'transfers', title: 'Transfers' };</script>
+  <script src="../js/main.js"></script>
+</head>
+<body>
+  <main class="main-content" id="main">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Transfers</h1>
+        <p class="page-subtitle">All internal checking/savings transfers across the platform.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr><th>User</th><th>From</th><th>To</th><th>Amount</th><th>Date</th><th>Status</th></tr>
+          </thead>
+          <tbody id="transfersBody"></tbody>
+        </table>
+      </div>
+      <div class="table-footer">
+        <span id="transfersCount"></span>
+        <div id="transfersPagination"></div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    if (!auth.requireAdmin()) throw new Error('Admin access required');
+
+    const esc = utils.escapeHtml;
+    const state = { page: 1, limit: 20 };
+
+    async function loadTransfers() {
+      loading.show('transfersBody');
+      try {
+        const res = await api.get('/transfers?page=' + state.page + '&limit=' + state.limit);
+        if (!res || !res.success) {
+          toast.error((res && res.message) || 'Failed to load transfers');
+          return;
+        }
+        const list = res.data || [];
+        document.getElementById('transfersBody').innerHTML = list.length
+          ? list.map(t => {
+              const u = t.userId || {};
+              return '<tr>' +
+                '<td><div>' + esc(u.name || 'N/A') + '</div><div class="text-small text-muted">' + esc(u.email || '') + '</div></td>' +
+                '<td>' + esc(t.from || '') + '</td>' +
+                '<td>' + esc(t.to || '') + '</td>' +
+                '<td>' + utils.formatCurrency(t.amount) + '</td>' +
+                '<td>' + utils.formatDateTime(t.createdAt) + '</td>' +
+                '<td><span class="badge badge-success">' + esc(t.status || 'completed') + '</span></td>' +
+              '</tr>';
+            }).join('')
+          : '<tr><td colspan="6"><div class="empty-state"><div class="empty-icon"><i class="fas fa-arrow-right-arrow-left"></i></div><div class="empty-title">No transfers yet</div></div></td></tr>';
+        const p = res.pagination || {};
+        document.getElementById('transfersCount').textContent = (p.total || list.length) + ' transfer(s)';
+        pagination.render('transfersPagination', Number(p.currentPage) || 1, Number(p.pages) || 1, 'goToPage');
+      } catch (e) {
+        toast.error('Failed to load transfers');
+      } finally {
+        loading.hide('transfersBody');
+      }
+    }
+
+    function goToPage(page) {
+      state.page = page;
+      loadTransfers();
+    }
+
+    loadTransfers();
+  </script>
+</body>
+</html>

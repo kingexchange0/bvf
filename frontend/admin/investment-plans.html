@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Investment Plans - BrightVale Finance Admin</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script>window.PAGE_CONFIG = { role: 'admin', active: 'investment-plans', title: 'Investment Plans' };</script>
+  <script src="../js/main.js"></script>
+</head>
+<body>
+  <main class="main-content" id="main">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Investment Plans</h1>
+        <p class="page-subtitle">Create and manage the ROI plans users can invest in.</p>
+      </div>
+      <button class="btn btn-primary" onclick="openPlanModal()"><i class="fas fa-plus"></i> New Plan</button>
+    </div>
+
+    <div class="grid" id="plansGrid"></div>
+  </main>
+
+  <!-- Plan form modal (create / edit) -->
+  <div class="modal-overlay" id="planModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title" id="planModalTitle">New plan</div>
+        <button class="modal-close" onclick="modal.close('planModal')"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <form id="planForm">
+          <div class="form-group">
+            <label class="form-label" for="planName">Plan name</label>
+            <input type="text" class="input" id="planName" placeholder="e.g. Growth Plan" required>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="planROI">ROI (%)</label>
+              <input type="number" class="input" id="planROI" step="0.1" min="0" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="planDuration">Duration (days)</label>
+              <input type="number" class="input" id="planDuration" step="1" min="1" required>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="planMin">Min amount (USD)</label>
+              <input type="number" class="input" id="planMin" step="0.01" min="0" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="planMax">Max amount (USD)</label>
+              <input type="number" class="input" id="planMax" step="0.01" min="0" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="planDescription">Description</label>
+            <textarea class="textarea" id="planDescription" style="min-height: 80px;" placeholder="Short description shown to users"></textarea>
+          </div>
+          <div class="form-group">
+            <label class="flex gap-8" style="align-items: center; cursor: pointer;">
+              <input type="checkbox" id="planIsActive" checked>
+              <span class="text-small">Plan is active (visible for investment)</span>
+            </label>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="modal.close('planModal')">Cancel</button>
+        <button class="btn btn-primary" id="planSubmitBtn"><i class="fas fa-floppy-disk"></i> Save plan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete confirm modal -->
+  <div class="modal-overlay" id="deleteModal">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <div class="modal-title">Delete plan</div>
+        <button class="modal-close" onclick="modal.close('deleteModal')"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <p id="deleteSummary" class="text-small text-muted"></p>
+        <p class="mt-8">This action cannot be undone. Existing investments keep their records, but users will no longer be able to select this plan.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="modal.close('deleteModal')">Cancel</button>
+        <button class="btn btn-danger-soft" id="deleteConfirmBtn"><i class="fas fa-trash"></i> Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    if (!auth.requireAdmin()) throw new Error('Admin access required');
+
+    const esc = utils.escapeHtml;
+    let editingId = null;
+    let deleteId = null;
+    const plansById = {};
+
+    const badgeClass = (s) => {
+      s = (s || '').toLowerCase();
+      if (['approved', 'completed', 'active', 'paid', 'verified', 'available', 'sold'].includes(s)) return 'badge-success';
+      if (['pending', 'processing'].includes(s)) return 'badge-warning';
+      if (['declined', 'rejected', 'suspended', 'cancelled', 'canceled', 'failed', 'defaulted'].includes(s)) return 'badge-danger';
+      if (['draft', 'unavailable', 'inactive', 'not_submitted'].includes(s)) return 'badge-muted';
+      if (s === 'featured') return 'badge-primary';
+      return 'badge-muted';
+    };
+    const badge = (s) => `<span class="badge ${badgeClass(s)}">${esc(s ? String(s).replace(/_/g, ' ') : 'N/A')}</span>`;
+
+    async function loadPlans() {
+      loading.show('plansGrid');
+      try {
+        const res = await api.get('/investment-plans/all');
+        if (!res.success) {
+          toast.error(res.message || 'Failed to load plans');
+          return;
+        }
+        const plans = res.data || [];
+        plans.forEach(p => { plansById[p._id] = p; });
+        document.getElementById('plansGrid').innerHTML = plans.length
+          ? plans.map(p => `
+              <div class="card card-hover">
+                <div class="card-header">
+                  <div class="card-title">${esc(p.name)}</div>
+                  ${badge(p.isActive ? 'active' : 'unavailable')}
+                </div>
+                <div class="flex gap-8 mt-8" style="flex-wrap: wrap;">
+                  <span class="chip"><i class="fas fa-percent"></i> ${esc(String(p.ROI))}% ROI</span>
+                  <span class="chip"><i class="fas fa-calendar"></i> ${esc(String(p.durationDays))} days</span>
+                </div>
+                <div class="mt-12 text-small text-muted">
+                  ${utils.formatCurrency(p.minAmount)} — ${utils.formatCurrency(p.maxAmount)}
+                </div>
+                ${p.description ? `<p class="text-small text-muted mt-8">${esc(p.description)}</p>` : ''}
+                <div class="flex gap-8 mt-16">
+                  <button class="btn btn-sm btn-ghost" onclick="openPlanModal('${p._id}')"><i class="fas fa-pen"></i> Edit</button>
+                  <button class="btn btn-sm btn-danger-soft" onclick="askDelete('${p._id}', '${esc(p.name)}')"><i class="fas fa-trash"></i> Delete</button>
+                </div>
+              </div>`).join('')
+          : `<div class="card"><div class="empty-state"><div class="empty-icon"><i class="fas fa-diagram-project"></i></div><div class="empty-title">No plans yet</div><div class="empty-hint">Create your first investment plan to let users start investing.</div></div></div>`;
+      } catch (error) {
+        console.error(error);
+        toast.error('Failed to load plans');
+      } finally {
+        loading.hide('plansGrid');
+      }
+    }
+
+    function openPlanModal(id) {
+      const plan = id ? plansById[id] : null;
+      editingId = id || null;
+      document.getElementById('planModalTitle').textContent = id ? 'Edit plan' : 'New plan';
+      document.getElementById('planName').value = plan ? plan.name : '';
+      document.getElementById('planROI').value = plan ? plan.ROI : '';
+      document.getElementById('planDuration').value = plan ? plan.durationDays : '';
+      document.getElementById('planMin').value = plan ? plan.minAmount : '';
+      document.getElementById('planMax').value = plan ? plan.maxAmount : '';
+      document.getElementById('planDescription').value = plan ? (plan.description || '') : '';
+      document.getElementById('planIsActive').checked = plan ? !!plan.isActive : true;
+      modal.open('planModal');
+    }
+
+    document.getElementById('planSubmitBtn').addEventListener('click', async () => {
+      const payload = {
+        name: document.getElementById('planName').value.trim(),
+        ROI: parseFloat(document.getElementById('planROI').value),
+        durationDays: parseInt(document.getElementById('planDuration').value, 10),
+        minAmount: parseFloat(document.getElementById('planMin').value),
+        maxAmount: parseFloat(document.getElementById('planMax').value),
+        description: document.getElementById('planDescription').value.trim(),
+        isActive: document.getElementById('planIsActive').checked
+      };
+      if (!payload.name || isNaN(payload.ROI) || isNaN(payload.durationDays) || isNaN(payload.minAmount) || isNaN(payload.maxAmount)) {
+        toast.warning('Please fill in all required fields');
+        return;
+      }
+      const btn = document.getElementById('planSubmitBtn');
+      btn.disabled = true;
+      try {
+        const res = editingId
+          ? await api.put(`/investment-plans/${editingId}`, payload)
+          : await api.post('/investment-plans', payload);
+        if (res.success) {
+          toast.success(res.message || 'Plan saved');
+          modal.close('planModal');
+          loadPlans();
+        } else {
+          toast.error(res.message || 'Save failed');
+        }
+      } catch (error) {
+        console.error(error);
+        toast.error('Save failed');
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    function askDelete(id, name) {
+      deleteId = id;
+      document.getElementById('deleteSummary').textContent = `Delete "${name}"?`;
+      modal.open('deleteModal');
+    }
+
+    document.getElementById('deleteConfirmBtn').addEventListener('click', async () => {
+      if (!deleteId) return;
+      const btn = document.getElementById('deleteConfirmBtn');
+      btn.disabled = true;
+      try {
+        const res = await api.delete(`/investment-plans/${deleteId}`);
+        if (res.success) {
+          toast.success(res.message || 'Plan deleted');
+          modal.close('deleteModal');
+          loadPlans();
+        } else {
+          toast.error(res.message || 'Delete failed');
+        }
+      } catch (error) {
+        console.error(error);
+        toast.error('Delete failed');
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    loadPlans();
+  </script>
+</body>
+</html>

@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Users - BrightVale Finance Admin</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script>window.PAGE_CONFIG = { role: 'admin', active: 'users', title: 'Users' };</script>
+  <script src="../js/main.js"></script>
+</head>
+<body>
+  <style>
+    .tx-hidden-row { opacity: .55; }
+    .tx-hidden-row td { background: var(--surface-2); }
+  </style>
+  <main class="main-content" id="main">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Users</h1>
+        <p class="page-subtitle">Manage registered users, balances and verification status.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="filter-bar mb-16">
+        <div class="search-input" style="flex: 1; min-width: 220px;">
+          <i class="fas fa-magnifying-glass"></i>
+          <input type="text" class="input" id="searchInput" placeholder="Search by name or email...">
+        </div>
+        <select class="select" id="statusFilter" style="width: auto;">
+          <option value="">All statuses</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+        <button class="btn btn-primary" id="searchBtn"><i class="fas fa-magnifying-glass"></i> Search</button>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr><th>User</th><th>Balance</th><th>KYC</th><th>Status</th><th>Joined</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="usersBody"></tbody>
+        </table>
+      </div>
+      <div class="table-footer">
+        <span id="usersCount"></span>
+        <div id="usersPagination"></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- View user modal -->
+  <div class="modal-overlay" id="viewModal">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <div class="modal-title">User details</div>
+        <button class="modal-close" onclick="modal.close('viewModal')"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="modal-body" id="viewModalBody"></div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="modal.close('viewModal')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit user modal -->
+  <div class="modal-overlay" id="editModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Edit user</div>
+        <button class="modal-close" onclick="modal.close('editModal')"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <form id="editForm">
+          <div class="form-group">
+            <label class="form-label" for="editName">Name</label>
+            <input type="text" class="input" id="editName" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="editEmail">Email</label>
+            <input type="email" class="input" id="editEmail" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="editKycStatus">KYC status</label>
+            <select class="select" id="editKycStatus">
+              <option value="not_submitted">Not submitted</option>
+              <option value="pending">Pending</option>
+              <option value="verified">Verified</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="flex gap-8" style="align-items: center; cursor: pointer;">
+              <input type="checkbox" id="editIsActive">
+              <span class="text-small">Account is active (user can log in)</span>
+            </label>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="modal.close('editModal')">Cancel</button>
+        <button class="btn btn-primary" id="saveEditBtn"><i class="fas fa-floppy-disk"></i> Save changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Credit / debit modal -->
+  <div class="modal-overlay" id="fundModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title" id="fundTitle">Adjust balance</div>
+        <button class="modal-close" onclick="modal.close('fundModal')"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="fundAmount">Amount (USD)</label>
+          <input type="number" class="input" id="fundAmount" step="0.01" min="0.01" placeholder="0.00">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="fundReason">Reason *</label>
+          <input type="text" class="input" id="fundReason" placeholder="Required reason for this adjustment">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="modal.close('fundModal')">Cancel</button>
+        <button class="btn btn-primary" id="fundSubmitBtn"><i class="fas fa-check"></i> Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    if (!auth.requireAdmin()) throw new Error('Admin access required');
+
+    const esc = utils.escapeHtml;
+    const state = { page: 1, limit: 20, search: '', status: '' };
+    let currentUserId = null;
+    let fundMode = 'credit';
+
+    const badgeClass = (s) => {
+      s = (s || '').toLowerCase();
+      if (['approved', 'completed', 'active', 'paid', 'verified', 'available', 'sold'].includes(s)) return 'badge-success';
+      if (['pending', 'processing'].includes(s)) return 'badge-warning';
+      if (['declined', 'rejected', 'suspended', 'cancelled', 'canceled', 'failed', 'defaulted'].includes(s)) return 'badge-danger';
+      if (['draft', 'unavailable', 'inactive', 'not_submitted'].includes(s)) return 'badge-muted';
+      if (s === 'featured') return 'badge-primary';
+      return 'badge-muted';
+    };
+    const badge = (s) => `<span class="badge ${badgeClass(s)}">${esc(s ? String(s).replace(/_/g, ' ') : 'N/A')}</span>`;
+
+    async function loadUsers() {
+      loading.show('usersBody');
+      try {
+        const params = new URLSearchParams({ page: state.page, limit: state.limit });
+        if (state.search) params.set('search', state.search);
+        if (state.status) params.set('status', state.status);
+        const res = await api.get(`/admin/users?${params.toString()}`);
+        if (!res.success) {
+          toast.error(res.message || 'Failed to load users');
+          return;
+        }
+        const users = res.data || [];
+        document.getElementById('usersBody').innerHTML = users.length
+          ? users.map(u => `
+              <tr>
+                <td>
+                  <div class="flex gap-8" style="align-items:center;">
+                    <div class="avatar avatar-sm">${esc(utils.getInitials(u.name))}</div>
+                    <div>
+                      <div>${esc(u.name)}</div>
+                      <div class="text-small text-muted">${esc(u.email)}</div>
+                    </div>
+                  </div>
+                </td>
+                <td>${utils.formatCurrency(u.balanceUSD)}</td>
+                <td>${badge(u.kycStatus)}</td>
+                <td>${badge(u.isActive ? 'active' : 'inactive')}</td>
+                <td>${utils.formatDate(u.createdAt)}</td>
+                <td>
+                  <div class="flex gap-4" style="flex-wrap: wrap;">
+                    <button class="btn btn-sm btn-ghost" onclick="viewUser('${u._id}')" title="View"><i class="fas fa-eye"></i></button>
+                    <button class="btn btn-sm btn-ghost" onclick="openEdit('${u._id}')" title="Edit"><i class="fas fa-pen"></i></button>
+                    <button class="btn btn-sm btn-ghost" onclick="openFund('${u._id}', 'credit')" title="Credit"><i class="fas fa-plus"></i></button>
+                    <button class="btn btn-sm btn-danger-soft" onclick="openFund('${u._id}', 'debit')" title="Debit"><i class="fas fa-minus"></i></button>
+                  </div>
+                </td>
+              </tr>`).join('')
+          : `<tr><td colspan="6"><div class="empty-state"><div class="empty-icon"><i class="fas fa-users"></i></div><div class="empty-title">No users found</div><div class="empty-hint">Try adjusting your search or filters.</div></div></td></tr>`;
+
+        const p = res.pagination || {};
+        document.getElementById('usersCount').textContent = `${p.total || users.length} user(s)`;
+        pagination.render('usersPagination', Number(p.currentPage) || 1, Number(p.pages) || 1, 'goToPage');
+      } catch (error) {
+        console.error(error);
+        toast.error('Failed to load users');
+      } finally {
+        loading.hide('usersBody');
+      }
+    }
+
+    let currentTxUserId = null;
+
+    function renderUserTx(list) {
+      const wrap = document.getElementById('userTxWrap');
+      if (!wrap) return;
+      const txs = list || [];
+      if (!txs.length) {
+        wrap.innerHTML = '<p class="text-small text-muted">No transactions.</p>';
+        return;
+      }
+      wrap.innerHTML = `
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Type</th><th>Description</th><th>Amount</th><th>Status</th><th>Date</th><th>Visibility</th></tr></thead>
+            <tbody>
+              ${txs.map(t => `
+                <tr class="${t.hidden ? 'tx-hidden-row' : ''}">
+                  <td><span class="badge badge-info">${esc(t.type ? String(t.type).replace(/_/g, ' ') : 'N/A')}</span></td>
+                  <td>${esc(t.description || '—')}</td>
+                  <td>${utils.formatCurrency(t.amount)}</td>
+                  <td>${badge(t.status)}</td>
+                  <td>${utils.formatDateTime(t.createdAt)}</td>
+                  <td>
+                    ${t.hidden ? '<span class="badge badge-muted">Hidden</span> ' : ''}
+                    <button class="btn btn-ghost btn-xs" onclick="toggleTxHide('${esc(String(t._id))}', ${t.hidden ? 'false' : 'true'}, this)">
+                      <i class="fas ${t.hidden ? 'fa-eye' : 'fa-eye-slash'}"></i> ${t.hidden ? 'Show' : 'Hide'}
+                    </button>
+                  </td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>`;
+    }
+
+    async function loadUserTx(userId, recentTransactions) {
+      const wrap = document.getElementById('userTxWrap');
+      if (!wrap) return;
+      if (Array.isArray(recentTransactions)) { renderUserTx(recentTransactions); return; }
+      wrap.innerHTML = '<div class="text-small text-muted">Loading transactions...</div>';
+      try {
+        const res = await api.get(`/transactions/user/${userId}`);
+        if (res && res.success) renderUserTx(res.data || []);
+        else wrap.innerHTML = '<p class="text-small text-muted">Could not load transactions.</p>';
+      } catch (e) {
+        wrap.innerHTML = '<p class="text-small text-muted">Could not load transactions.</p>';
+      }
+    }
+
+    async function toggleTxHide(id, hide, btn) {
+      btn.disabled = true;
+      const orig = btn.innerHTML;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+      try {
+        const res = await api.put(`/transactions/admin/${id}/${hide ? 'hide' : 'show'}`);
+        if (res && res.success) {
+          toast.success(hide ? 'Transaction hidden from user' : 'Transaction visible to user');
+          if (currentTxUserId) loadUserTx(currentTxUserId);
+          return;
+        }
+        toast.error((res && res.message) || 'Update failed');
+      } catch (e) {
+        toast.error('Update failed');
+      }
+      btn.disabled = false;
+      btn.innerHTML = orig;
+    }
+
+    async function generateHistory(userId) {
+      const months = parseInt(prompt('Generate history over how many months?', '12'), 10) || 12;
+      const btn = document.getElementById('genHistoryBtn');
+      if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
+      try {
+        const res = await api.post(`/admin/users/${userId}/generate-history`, { months });
+        if (res && res.success) {
+          toast.success(res.message);
+          if (currentTxUserId) loadUserTx(currentTxUserId);
+        } else {
+          toast.error((res && res.message) || 'Generation failed');
+        }
+      } catch (e) {
+        toast.error('Generation failed');
+      }
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-clock-rotate-left"></i> Generate history'; }
+    }
+
+    async function clearGeneratedHistory(userId) {
+      if (!confirm('Remove all generated history entries for this user?')) return;
+      const btn = document.getElementById('clearHistoryBtn');
+      if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
+      try {
+        const res = await api.delete(`/admin/users/${userId}/generated-history`);
+        if (res && res.success) {
+          toast.success(res.message);
+          if (currentTxUserId) loadUserTx(currentTxUserId);
+        } else {
+          toast.error((res && res.message) || 'Remove failed');
+        }
+      } catch (e) {
+        toast.error('Remove failed');
+      }
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-eraser"></i> Clear generated'; }
+    }
+
+    function goToPage(page) {
+      state.page = page;
+      loadUsers();
+    }
+
+    async function viewUser(id) {
+      let detailRecentTx = null;
+      loading.show('viewModalBody');
+      modal.open('viewModal');
+      try {
+        const res = await api.get(`/admin/users/${id}`);
+        if (!res.success) {
+          toast.error(res.message || 'Failed to load user');
+          modal.close('viewModal');
+          return;
+        }
+        const { user, stats, kyc, investments, loans, recentTransactions } = res.data;
+        currentTxUserId = user._id;
+        detailRecentTx = recentTransactions;
+        const statItem = (label, value) => `
+          <div class="stat-card" style="padding: 14px 16px;">
+            <div class="stat-label">${esc(label)}</div>
+            <div class="stat-value" style="font-size: 18px;">${value}</div>
+          </div>`;
+        document.getElementById('viewModalBody').innerHTML = `
+          <div class="flex gap-12" style="align-items: center;">
+            <div class="avatar avatar-lg">${esc(utils.getInitials(user.name))}</div>
+            <div style="min-width: 0;">
+              <div style="font-weight: 700; font-size: 16px;">${esc(user.name)}</div>
+              <div class="text-small text-muted">${esc(user.email)}</div>
+              <div class="flex gap-8 mt-4">
+                ${badge(user.kycStatus)}
+                ${badge(user.isActive ? 'active' : 'inactive')}
+                ${badge(user.isEmailVerified ? 'verified' : 'unverified')}
+              </div>
+            </div>
+          </div>
+          <hr class="divider">
+          <div class="stat-grid" style="grid-template-columns: repeat(3, 1fr);">
+            ${statItem('Balance', utils.formatCurrency(user.balanceUSD))}
+            ${statItem('Total Deposits', utils.formatCurrency(stats.totalDeposits))}
+            ${statItem('Total Withdrawals', utils.formatCurrency(stats.totalWithdrawals))}
+            ${statItem('Total Invested', utils.formatCurrency(stats.totalInvested))}
+            ${statItem('Investments', stats.investmentCount)}
+            ${statItem('Loans', stats.loanCount)}
+          </div>
+          <hr class="divider">
+          <div class="card-title mb-8">KYC</div>
+          ${kyc ? `
+            <div class="flex gap-8" style="flex-wrap: wrap; align-items: center;">
+              ${badge(kyc.status)}
+              <span class="text-small text-muted">${esc(kyc.idType ? kyc.idType.replace(/_/g, ' ') : 'N/A')} &middot; ${esc(kyc.idNumber || '')}</span>
+            </div>` : '<p class="text-small text-muted">No KYC submission.</p>'}
+          <hr class="divider">
+          <div class="flex-between mb-8">
+            <div class="card-title">Transaction History</div>
+            <div class="flex gap-8">
+              <button class="btn btn-ghost btn-sm" id="genHistoryBtn" onclick="generateHistory('${user._id}')"><i class="fas fa-clock-rotate-left"></i> Generate history</button>
+              <button class="btn btn-ghost btn-sm" id="clearHistoryBtn" onclick="clearGeneratedHistory('${user._id}')"><i class="fas fa-eraser"></i> Clear generated</button>
+            </div>
+          </div>
+          <div id="userTxWrap"><div class="text-small text-muted">Loading transactions...</div></div>
+          <hr class="divider">
+          <div class="card-title mb-8">Investments</div>
+          ${(investments && investments.length) ? `
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead><tr><th>Plan</th><th>Amount</th><th>Expected</th><th>Status</th></tr></thead>
+                <tbody>
+                  ${investments.map(i => `<tr><td>${esc(i.planName)}</td><td>${utils.formatCurrency(i.amount)}</td><td>${utils.formatCurrency(i.expectedReturns)}</td><td>${badge(i.status)}</td></tr>`).join('')}
+                </tbody>
+              </table>
+            </div>` : '<p class="text-small text-muted">No investments.</p>'}
+          <hr class="divider">
+          <div class="card-title mb-8">Loans</div>
+          ${(loans && loans.length) ? `
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead><tr><th>Plan</th><th>Amount</th><th>Monthly</th><th>Status</th></tr></thead>
+                <tbody>
+                  ${loans.map(l => `<tr><td>${esc(l.planName)}</td><td>${utils.formatCurrency(l.amount)}</td><td>${utils.formatCurrency(l.monthlyPayment)}</td><td>${badge(l.status)}</td></tr>`).join('')}
+                </tbody>
+              </table>
+            </div>` : '<p class="text-small text-muted">No loans.</p>'}`;
+      } catch (error) {
+        console.error(error);
+        toast.error('Failed to load user');
+        modal.close('viewModal');
+      } finally {
+        loading.hide('viewModalBody');
+        if (currentTxUserId) loadUserTx(currentTxUserId, detailRecentTx);
+      }
+    }
+
+    function openEdit(id) {
+      currentUserId = id;
+      const res = api.get(`/admin/users/${id}`).then(res => {
+        if (!res.success) {
+          toast.error(res.message || 'Failed to load user');
+          return;
+        }
+        const u = res.data.user;
+        document.getElementById('editName').value = u.name || '';
+        document.getElementById('editEmail').value = u.email || '';
+        document.getElementById('editKycStatus').value = u.kycStatus || 'not_submitted';
+        document.getElementById('editIsActive').checked = !!u.isActive;
+        modal.open('editModal');
+      });
+    }
+
+    document.getElementById('saveEditBtn').addEventListener('click', async () => {
+      if (!currentUserId) return;
+      const payload = {
+        name: document.getElementById('editName').value.trim(),
+        email: document.getElementById('editEmail').value.trim(),
+        isActive: document.getElementById('editIsActive').checked,
+        kycStatus: document.getElementById('editKycStatus').value
+      };
+      const btn = document.getElementById('saveEditBtn');
+      btn.disabled = true;
+      try {
+        const res = await api.put(`/admin/users/${currentUserId}`, payload);
+        if (res.success) {
+          toast.success(res.message || 'User updated');
+          modal.close('editModal');
+          loadUsers();
+        } else {
+          toast.error(res.message || 'Update failed');
+        }
+      } catch (error) {
+        console.error(error);
+        toast.error('Update failed');
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    function openFund(id, mode) {
+      currentUserId = id;
+      fundMode = mode;
+      document.getElementById('fundTitle').textContent = mode === 'credit' ? 'Credit balance' : 'Debit balance';
+      document.getElementById('fundAmount').value = '';
+      document.getElementById('fundReason').value = '';
+      modal.open('fundModal');
+    }
+
+    document.getElementById('fundSubmitBtn').addEventListener('click', async () => {
+      if (!currentUserId) return;
+      const amount = parseFloat(document.getElementById('fundAmount').value);
+      if (!amount || amount <= 0) {
+        toast.warning('Enter a valid amount');
+        return;
+      }
+      const reason = document.getElementById('fundReason').value.trim();
+      if (!reason) {
+        toast.error('A reason is required for balance adjustments');
+        return;
+      }
+      const btn = document.getElementById('fundSubmitBtn');
+      btn.disabled = true;
+      try {
+        const res = await api.post(`/admin/users/${currentUserId}/${fundMode}`, { amount, reason });
+        if (res.success) {
+          toast.success(`New balance: ${utils.formatCurrency(res.data && res.data.newBalance)}`);
+          modal.close('fundModal');
+          loadUsers();
+        } else {
+          toast.error(res.message || 'Operation failed');
+        }
+      } catch (error) {
+        console.error(error);
+        toast.error('Operation failed');
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    const doSearch = () => {
+      state.search = document.getElementById('searchInput').value.trim();
+      state.status = document.getElementById('statusFilter').value;
+      state.page = 1;
+      loadUsers();
+    };
+    document.getElementById('searchBtn').addEventListener('click', doSearch);
+    document.getElementById('searchInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') doSearch(); });
+    document.getElementById('statusFilter').addEventListener('change', doSearch);
+
+    loadUsers();
+  </script>
+</body>
+</html>

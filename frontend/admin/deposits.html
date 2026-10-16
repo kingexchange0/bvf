@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Deposits - BrightVale Finance Admin</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script>window.PAGE_CONFIG = { role: 'admin', active: 'deposits', title: 'Deposits' };</script>
+  <script src="../js/main.js"></script>
+</head>
+<body>
+  <main class="main-content" id="main">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Deposits</h1>
+        <p class="page-subtitle">Review and process Bitcoin deposit requests with payment proofs.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="filter-bar mb-16">
+        <select class="select" id="statusFilter" style="width: auto;">
+          <option value="">All statuses</option>
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="declined">Declined</option>
+        </select>
+        <button class="btn btn-primary" id="applyBtn"><i class="fas fa-filter"></i> Apply</button>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr><th>User</th><th>Amount</th><th>Proof</th><th>Status</th><th>Date</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="depositsBody"></tbody>
+        </table>
+      </div>
+      <div class="table-footer">
+        <span id="depositsCount"></span>
+        <div id="depositsPagination"></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Image viewer modal -->
+  <div class="modal-overlay" id="imageModal">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <div class="modal-title" id="imageModalTitle">Payment proof</div>
+        <button class="modal-close" onclick="modal.close('imageModal')"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <img id="imageModalImg" src="" alt="Payment proof" style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="modal.close('imageModal')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Approve / decline note modal -->
+  <div class="modal-overlay" id="actionModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title" id="actionTitle">Process deposit</div>
+        <button class="modal-close" onclick="modal.close('actionModal')"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-small text-muted mb-8" id="actionSummary"></p>
+        <div class="form-group">
+          <label class="form-label" for="actionNote">Admin note (optional)</label>
+          <textarea class="textarea" id="actionNote" style="min-height: 80px;" placeholder="Add an internal note for this decision"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="modal.close('actionModal')">Cancel</button>
+        <button class="btn btn-primary" id="actionConfirmBtn"><i class="fas fa-check"></i> Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    if (!auth.requireAdmin()) throw new Error('Admin access required');
+
+    const esc = utils.escapeHtml;
+    const state = { page: 1, limit: 20, status: '' };
+    let actionState = { id: null, action: null };
+
+    const badgeClass = (s) => {
+      s = (s || '').toLowerCase();
+      if (['approved', 'completed', 'active', 'paid', 'verified', 'available', 'sold'].includes(s)) return 'badge-success';
+      if (['pending', 'processing'].includes(s)) return 'badge-warning';
+      if (['declined', 'rejected', 'suspended', 'cancelled', 'canceled', 'failed', 'defaulted'].includes(s)) return 'badge-danger';
+      if (['draft', 'unavailable', 'inactive', 'not_submitted'].includes(s)) return 'badge-muted';
+      if (s === 'featured') return 'badge-primary';
+      return 'badge-muted';
+    };
+    const badge = (s) => `<span class="badge ${badgeClass(s)}">${esc(s ? String(s).replace(/_/g, ' ') : 'N/A')}</span>`;
+    const imgUrl = (p) => p ? SERVER_BASE_URL + (p.startsWith('/') ? p : '/' + p) : '';
+
+    async function loadDeposits() {
+      loading.show('depositsBody');
+      try {
+        const params = new URLSearchParams({ page: state.page, limit: state.limit });
+        if (state.status) params.set('status', state.status);
+        const res = await api.get(`/deposits?${params.toString()}`);
+        if (!res.success) {
+          toast.error(res.message || 'Failed to load deposits');
+          return;
+        }
+        const deposits = res.data || [];
+        document.getElementById('depositsBody').innerHTML = deposits.length
+          ? deposits.map(d => {
+              const proof = imgUrl(d.btcProof);
+              return `
+              <tr>
+                <td>
+                  ${esc((d.userId && d.userId.name) || 'Deleted user')}
+                  <div class="text-small text-muted">${esc((d.userId && d.userId.email) || '')}</div>
+                </td>
+                <td>${utils.formatCurrency(d.amount)}</td>
+                <td>
+                  ${proof
+                    ? `<img src="${esc(proof)}" alt="Proof" onclick="viewImage('${esc(proof)}')" style="width: 40px; height: 40px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); cursor: pointer;" title="View proof">`
+                    : '<span class="text-muted text-small">No proof</span>'}
+                </td>
+                <td>${badge(d.status)}</td>
+                <td>${utils.formatDateTime(d.createdAt)}</td>
+                <td>
+                  ${d.status === 'pending' ? `
+                    <div class="flex gap-4">
+                      <button class="btn btn-sm btn-primary" onclick="openAction('${d._id}', 'approve', ${Number(d.amount)})"><i class="fas fa-check"></i> Approve</button>
+                      <button class="btn btn-sm btn-danger-soft" onclick="openAction('${d._id}', 'decline', ${Number(d.amount)})"><i class="fas fa-xmark"></i> Decline</button>
+                    </div>` : '<span class="text-small text-muted">Processed</span>'}
+                </td>
+              </tr>`;
+            }).join('')
+          : `<tr><td colspan="6"><div class="empty-state"><div class="empty-icon"><i class="fas fa-download"></i></div><div class="empty-title">No deposits found</div><div class="empty-hint">Deposits will appear here once users submit proof of payment.</div></div></td></tr>`;
+
+        const p = res.pagination || {};
+        document.getElementById('depositsCount').textContent = `${p.total || deposits.length} deposit(s)`;
+        pagination.render('depositsPagination', Number(p.currentPage) || 1, Number(p.pages) || 1, 'goToPage');
+      } catch (error) {
+        console.error(error);
+        toast.error('Failed to load deposits');
+      } finally {
+        loading.hide('depositsBody');
+      }
+    }
+
+    function goToPage(page) {
+      state.page = page;
+      loadDeposits();
+    }
+
+    function viewImage(src) {
+      document.getElementById('imageModalImg').src = src;
+      modal.open('imageModal');
+    }
+
+    function openAction(id, action, amount) {
+      actionState = { id, action };
+      document.getElementById('actionTitle').textContent = action === 'approve' ? 'Approve deposit' : 'Decline deposit';
+      document.getElementById('actionSummary').textContent =
+        `You are about to ${action} a deposit of ${utils.formatCurrency(amount)}.`;
+      document.getElementById('actionNote').value = '';
+      document.getElementById('actionConfirmBtn').className = action === 'approve' ? 'btn btn-primary' : 'btn btn-danger-soft';
+      modal.open('actionModal');
+    }
+
+    document.getElementById('actionConfirmBtn').addEventListener('click', async () => {
+      if (!actionState.id) return;
+      const btn = document.getElementById('actionConfirmBtn');
+      btn.disabled = true;
+      try {
+        const res = await api.put(`/deposits/admin/${actionState.id}/${actionState.action}`, {
+          adminNote: document.getElementById('actionNote').value.trim()
+        });
+        if (res.success) {
+          toast.success(res.message || 'Deposit updated');
+          modal.close('actionModal');
+          loadDeposits();
+        } else {
+          toast.error(res.message || 'Operation failed');
+        }
+      } catch (error) {
+        console.error(error);
+        toast.error('Operation failed');
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById('applyBtn').addEventListener('click', () => {
+      state.status = document.getElementById('statusFilter').value;
+      state.page = 1;
+      loadDeposits();
+    });
+
+    // Preselect status from query string, e.g. deposits.html?status=pending
+    const preset = new URLSearchParams(location.search).get('status');
+    if (preset) {
+      document.getElementById('statusFilter').value = preset;
+      state.status = preset;
+    }
+    loadDeposits();
+  </script>
+</body>
+</html>

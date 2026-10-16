@@ -1,0 +1,4 @@
+# Frontend-specific (static site — nothing to build)
+Thumbs.db
+.DS_Store
+*.log

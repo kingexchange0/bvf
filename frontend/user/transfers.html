@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transfers - BrightVale Finance</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script>window.PAGE_CONFIG = { role: 'user', active: 'transfers', title: 'Transfers' };</script>
+  <script src="../js/main.js"></script>
+  <style>
+    .tr-grid { display: grid; grid-template-columns: 1.25fr .75fr; gap: 20px; align-items: start; }
+    .acct-pill { display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 16px; background: var(--surface-2); }
+    .acct-pill .amt { font-family: var(--font-display); font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
+    .tr-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 0; }
+    .tr-item + .tr-item { border-top: 1px dashed var(--border); }
+    .tr-item .amt { font-family: var(--font-display); font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+    .tr-item .sub { font-size: 11px; color: var(--text-3); }
+    .notice-box { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 10px; font-size: 13px; line-height: 1.55; margin-bottom: 16px; background: #EFF6FF; border: 1px solid #BFDBFE; color: #1D4ED8; }
+    [data-theme='dark'] .notice-box { background: #0B1B3F; border-color: #1E3A8A; color: #93C5FD; }
+    @media (max-width: 992px) { .tr-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <main class="main-content" id="main">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Transfers</h1>
+        <p class="page-subtitle">Move money between your BrightVale checking and savings accounts instantly and free of charge.</p>
+      </div>
+    </div>
+
+    <div class="tr-grid">
+      <div class="card reveal">
+        <div class="card-title mb-16"><i class="fas fa-arrow-right-arrow-left"></i> Internal Transfer</div>
+
+        <div class="acct-pill mb-16">
+          <div><div class="text-small text-muted">Checking</div><div class="amt" id="checkingAmt">—</div></div>
+          <div style="text-align:right;"><div class="text-small text-muted">Savings</div><div class="amt" id="savingsAmt">—</div></div>
+        </div>
+
+        <div class="notice-box"><i class="fas fa-circle-info" style="margin-top:2px;"></i>
+          <span>Transfers between your BrightVale checking and savings accounts are instant and free of charge. External beneficiary transfers become available once your account is fully verified.</span>
+        </div>
+
+        <form id="transferForm">
+          <div class="form-group">
+            <label class="form-label">From *</label>
+            <select class="select" id="fromAcct" required>
+              <option value="checking">Checking</option>
+              <option value="savings">Savings</option>
+            </select>
+          </div>
+          <div class="form-group" style="text-align:center;">
+            <button type="button" class="btn btn-ghost btn-sm" id="swapBtn" title="Swap direction"><i class="fas fa-arrow-down-up-across-line"></i> Swap</button>
+          </div>
+          <div class="form-group">
+            <label class="form-label">To *</label>
+            <select class="select" id="toAcct" required>
+              <option value="savings">Savings</option>
+              <option value="checking">Checking</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Amount (USD) *</label>
+            <input type="number" class="input" id="amount" min="0.01" step="0.01" placeholder="Enter amount" required>
+            <div class="form-hint mt-8" id="availHint">Available: —</div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block" id="submitBtn"><i class="fas fa-paper-plane"></i> Review Transfer</button>
+        </form>
+      </div>
+
+      <div class="card reveal">
+        <div class="card-header">
+          <div class="card-title">Transfer History</div>
+        </div>
+        <div id="historyWrap"><div class="loading"><div class="spinner"></div></div></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Confirm modal -->
+  <div class="modal-overlay" id="confirmModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Confirm Transfer</div>
+        <button class="modal-close" onclick="modal.close('confirmModal')"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="modal-body" id="confirmBody"></div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="modal.close('confirmModal')">Cancel</button>
+        <button class="btn btn-primary" id="confirmBtn"><i class="fas fa-check"></i> Confirm Transfer</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    if (!auth.isLoggedIn()) {
+      window.location.href = '../login.html';
+    }
+
+    let balances = { checking: 0, savings: 0 };
+    let pendingPayload = null;
+
+    function availableFor(acct) {
+      return acct === 'savings' ? balances.savings : balances.checking;
+    }
+
+    function refreshHint() {
+      const from = document.getElementById('fromAcct').value;
+      document.getElementById('availHint').textContent = 'Available in ' + from + ': ' + utils.formatCurrency(availableFor(from));
+    }
+
+    async function loadProfile() {
+      try {
+        const res = await api.get('/user/profile');
+        if (res && res.success && res.data) {
+          balances.checking = res.data.balanceUSD || 0;
+          balances.savings = res.data.savingsBalance || 0;
+          document.getElementById('checkingAmt').textContent = utils.formatCurrency(balances.checking);
+          document.getElementById('savingsAmt').textContent = utils.formatCurrency(balances.savings);
+          refreshHint();
+        }
+      } catch (e) { /* keep defaults */ }
+    }
+
+    document.getElementById('swapBtn').addEventListener('click', function () {
+      const from = document.getElementById('fromAcct');
+      const to = document.getElementById('toAcct');
+      const tmp = from.value;
+      from.value = to.value;
+      to.value = tmp === from.value ? (from.value === 'checking' ? 'savings' : 'checking') : tmp;
+      if (from.value === to.value) to.value = from.value === 'checking' ? 'savings' : 'checking';
+      refreshHint();
+    });
+
+    document.getElementById('fromAcct').addEventListener('change', function () {
+      const to = document.getElementById('toAcct');
+      if (to.value === this.value) to.value = this.value === 'checking' ? 'savings' : 'checking';
+      refreshHint();
+    });
+
+    document.getElementById('toAcct').addEventListener('change', function () {
+      const from = document.getElementById('fromAcct');
+      if (from.value === this.value) from.value = this.value === 'checking' ? 'savings' : 'checking';
+      refreshHint();
+    });
+
+    document.getElementById('transferForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      const from = document.getElementById('fromAcct').value;
+      const to = document.getElementById('toAcct').value;
+      const amount = parseFloat(document.getElementById('amount').value);
+      if (!amount || amount <= 0) { toast.error('Enter a valid amount'); return; }
+      if (from === to) { toast.error('Source and destination must be different'); return; }
+      if (amount > availableFor(from)) { toast.error('Amount exceeds your available ' + from + ' balance'); return; }
+
+      pendingPayload = { from: from, to: to, amount: amount };
+      document.getElementById('confirmBody').innerHTML =
+        '<div class="text-small" style="line-height:1.8;">' +
+        '<b>From:</b> ' + from.charAt(0).toUpperCase() + from.slice(1) + ' (' + utils.formatCurrency(availableFor(from)) + ' available)<br>' +
+        '<b>To:</b> ' + to.charAt(0).toUpperCase() + to.slice(1) + '<br>' +
+        '<b>Amount:</b> ' + utils.formatCurrency(amount) +
+        '</div>';
+      modal.open('confirmModal');
+    });
+
+    document.getElementById('confirmBtn').addEventListener('click', async function () {
+      if (!pendingPayload) return;
+      const btn = this;
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+      const idempotencyKey = (crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()) + Math.random();
+      try {
+        const res = await api.post('/transfers', {
+          from: pendingPayload.from,
+          to: pendingPayload.to,
+          amount: pendingPayload.amount,
+          idempotencyKey: idempotencyKey
+        });
+        if (res && res.success) {
+          toast.success('Transfer completed');
+          modal.close('confirmModal');
+          document.getElementById('transferForm').reset();
+          refreshHint();
+          loadProfile();
+          loadHistory();
+        } else if (kycGate.isKycError(res)) {
+          modal.close('confirmModal');
+          kycGate.show(res.message);
+        } else {
+          toast.error((res && res.message) || 'Transfer failed');
+        }
+      } catch (err) {
+        toast.error('Transfer failed. Please try again.');
+      }
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-check"></i> Confirm Transfer';
+    });
+
+    async function loadHistory() {
+      const wrap = document.getElementById('historyWrap');
+      try {
+        const res = await api.get('/transfers');
+        if (!res || !res.success) { wrap.innerHTML = '<div class="text-small text-muted">Could not load transfer history.</div>'; return; }
+        const list = res.data || [];
+        if (!list.length) {
+          wrap.innerHTML = '<div class="empty-state" style="padding:20px 0;"><div class="empty-icon"><i class="fas fa-arrow-right-arrow-left"></i></div><div class="empty-hint">No transfers yet.</div></div>';
+          return;
+        }
+        wrap.innerHTML = list.map(function (t) {
+          const when = t.createdAt ? utils.formatDateTime(t.createdAt) : '';
+          return '<div class="tr-item">' +
+            '<div><div class="amt">' + utils.formatCurrency(t.amount) + '</div>' +
+            '<div class="sub">' + utils.escapeHtml(t.from || '') + ' &rarr; ' + utils.escapeHtml(t.to || '') + (when ? ' &middot; ' + when : '') + '</div></div>' +
+            '<span class="badge badge-success">' + utils.escapeHtml(t.status || 'completed') + '</span>' +
+          '</div>';
+        }).join('');
+      } catch (e) {
+        wrap.innerHTML = '<div class="text-small text-muted">Could not load transfer history.</div>';
+      }
+    }
+
+    loadProfile();
+    loadHistory();
+  </script>
+</body>
+</html>

@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Referral Program - BrightVale Finance</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script>window.PAGE_CONFIG = { role: 'user', active: 'referrals', title: 'Referral Program' };</script>
+  <script src="../js/main.js"></script>
+  <style>
+    .ref-code-box { font-size: 26px; font-weight: 700; letter-spacing: 3px; text-align: center; padding: 22px 16px; border: 2px dashed var(--border); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--primary); margin-bottom: 14px; }
+    .how-step { display: flex; gap: 12px; padding: 10px 0; align-items: flex-start; }
+    .how-step + .how-step { border-top: 1px solid var(--border); }
+    .how-num { width: 28px; height: 28px; border-radius: 50%; background: var(--primary-soft); color: var(--primary); font-weight: 700; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+    .how-step b { display: block; font-size: 14px; color: var(--text); }
+    .how-step span { font-size: 12px; color: var(--text-3); }
+  </style>
+</head>
+<body>
+  <main class="main-content" id="main">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Referral Program</h1>
+        <p class="page-subtitle">Invite friends to BrightVale Finance and earn a bonus for every friend who signs up.</p>
+      </div>
+    </div>
+
+    <div class="stat-grid mb-24">
+      <div class="stat-card reveal">
+        <div class="flex-between">
+          <span class="stat-label">Total Referrals</span>
+          <span class="stat-icon"><i class="fas fa-users"></i></span>
+        </div>
+        <div class="stat-value" id="statReferrals">&mdash;</div>
+      </div>
+      <div class="stat-card reveal">
+        <div class="flex-between">
+          <span class="stat-label">Total Earnings</span>
+          <span class="stat-icon"><i class="fas fa-coins"></i></span>
+        </div>
+        <div class="stat-value" id="statEarnings">&mdash;</div>
+      </div>
+      <div class="stat-card reveal">
+        <div class="flex-between">
+          <span class="stat-label">Bonus Per Referral</span>
+          <span class="stat-icon"><i class="fas fa-gift"></i></span>
+        </div>
+        <div class="stat-value" id="statBonus">&mdash;</div>
+      </div>
+    </div>
+
+    <div class="grid-2 mb-24">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="fas fa-share-nodes"></i> Your Referral Code</div>
+        </div>
+        <div class="ref-code-box" id="refCodeBox">&mdash;</div>
+        <div class="flex gap-8">
+          <button class="btn btn-primary btn-sm" id="copyCodeBtn"><i class="fas fa-copy"></i> Copy Code</button>
+          <button class="btn btn-ghost btn-sm" id="copyLinkBtn"><i class="fas fa-link"></i> Copy Invite Link</button>
+        </div>
+        <p class="text-small text-muted mt-12" id="shareLinkText"></p>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="fas fa-circle-info"></i> How It Works</div>
+        </div>
+        <div class="how-step">
+          <span class="how-num">1</span>
+          <div><b>Share your code</b><span>Send your referral code or invite link to friends, family, or your audience.</span></div>
+        </div>
+        <div class="how-step">
+          <span class="how-num">2</span>
+          <div><b>They sign up</b><span>Your friend creates a BrightVale Finance account using your code or link.</span></div>
+        </div>
+        <div class="how-step">
+          <span class="how-num">3</span>
+          <div><b>You earn a bonus</b><span>A referral bonus is credited to your wallet for every successful signup.</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fas fa-user-check"></i> My Referrals</div>
+        <span class="badge badge-primary" id="refCountBadge">0</span>
+      </div>
+      <div id="refTableWrap">
+        <div class="skeleton" style="height: 18px; margin: 12px 0;"></div>
+        <div class="skeleton" style="height: 18px; margin: 12px 0;"></div>
+        <div class="skeleton" style="height: 18px; margin: 12px 0;"></div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    if (!auth.isLoggedIn()) {
+      window.location.href = '../login.html';
+    }
+
+    const esc = utils.escapeHtml;
+    let referralCode = '';
+
+    function shareUrlFor(code) {
+      return new URL('../login.html?ref=' + encodeURIComponent(code), window.location.href).href;
+    }
+
+    async function copyText(text, label) {
+      try {
+        await navigator.clipboard.writeText(text);
+        toast.success(label + ' copied to clipboard');
+      } catch (e) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); toast.success(label + ' copied to clipboard'); }
+        catch (err) { toast.error('Copy failed — select and copy manually'); }
+        document.body.removeChild(ta);
+      }
+    }
+
+    async function loadReferrals() {
+      const wrap = document.getElementById('refTableWrap');
+      try {
+        const res = await api.get('/referrals');
+        if (!res || !res.success) {
+          wrap.innerHTML = `<div class="empty-state"><div class="empty-title">Failed to load referrals</div><div class="empty-hint">${esc((res && res.message) || 'Please try again.')}</div></div>`;
+          return;
+        }
+        const d = res.data || {};
+        referralCode = d.referralCode || '';
+        document.getElementById('statReferrals').textContent = d.totalReferrals != null ? d.totalReferrals : 0;
+        document.getElementById('statEarnings').textContent = utils.formatCurrency(d.totalEarnings || 0);
+        document.getElementById('statBonus').textContent = utils.formatCurrency(d.bonusAmount || 0);
+        document.getElementById('refCountBadge').textContent = d.totalReferrals || 0;
+        document.getElementById('refCodeBox').textContent = referralCode || '—';
+        document.getElementById('shareLinkText').textContent = referralCode ? 'Invite link: ' + shareUrlFor(referralCode) : '';
+
+        const users = d.referredUsers || [];
+        if (!users.length) {
+          wrap.innerHTML = `<div class="empty-state" style="padding: 40px 16px;">
+            <div class="empty-icon"><i class="fas fa-user-plus"></i></div>
+            <div class="empty-title">No referrals yet</div>
+            <div class="empty-hint">Share your referral code to start earning bonuses.</div>
+          </div>`;
+          return;
+        }
+        wrap.innerHTML = `
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr><th>Name</th><th>Email</th><th>Joined</th><th>Status</th></tr>
+              </thead>
+              <tbody>
+                ${users.map(u => `
+                  <tr>
+                    <td>
+                      <div class="flex gap-8" style="align-items: center;">
+                        <span class="avatar" style="width: 32px; height: 32px; font-size: 12px;">${esc(utils.getInitials(u.name))}</span>
+                        <span>${esc(u.name)}</span>
+                      </div>
+                    </td>
+                    <td>${esc(u.email)}</td>
+                    <td>${utils.formatDate(u.createdAt)}</td>
+                    <td><span class="badge badge-success">Joined</span></td>
+                  </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>`;
+      } catch (e) {
+        console.error(e);
+        wrap.innerHTML = `<div class="empty-state"><div class="empty-title">Failed to load referrals</div><div class="empty-hint">Please try again.</div></div>`;
+      }
+    }
+
+    document.getElementById('copyCodeBtn').addEventListener('click', () => {
+      if (!referralCode) { toast.error('Referral code not loaded yet'); return; }
+      copyText(referralCode, 'Referral code');
+    });
+    document.getElementById('copyLinkBtn').addEventListener('click', () => {
+      if (!referralCode) { toast.error('Referral code not loaded yet'); return; }
+      copyText(shareUrlFor(referralCode), 'Invite link');
+    });
+
+    loadReferrals();
+  </script>
+</body>
+</html>

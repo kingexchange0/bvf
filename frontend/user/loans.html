@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Loans - BrightVale Finance</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script>window.PAGE_CONFIG = { role: 'user', active: 'loans', title: 'Loans' };</script>
+  <script src="../js/main.js"></script>
+  <style>
+    .loans-grid { display: grid; grid-template-columns: 1.25fr .75fr; gap: 20px; align-items: start; }
+    .info-item { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; }
+    .info-item + .info-item { border-top: 1px dashed var(--border); }
+    .info-icon { width: 34px; height: 34px; border-radius: 10px; background: var(--primary-soft); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+    .info-item b { display: block; font-size: 13px; color: var(--text); }
+    .info-item span { font-size: 12px; color: var(--text-2); line-height: 1.5; }
+    .loan-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 0; }
+    .loan-item + .loan-item { border-top: 1px dashed var(--border); }
+    .loan-item .amt { font-family: var(--font-display); font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+    .loan-item .sub { font-size: 11px; color: var(--text-3); }
+    .loan-notice { background: #EFF6FF; border: 1px solid #BFDBFE; color: #1D4ED8; }
+    [data-theme='dark'] .loan-notice { background: #0B1B3F; border-color: #1E3A8A; color: #93C5FD; }
+    .loan-plans-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; margin-bottom: 20px; }
+    .loan-plan-card { position: relative; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); padding: 20px; display: flex; flex-direction: column; gap: 10px; transition: all .15s ease; cursor: pointer; }
+    .loan-plan-card:hover { border-color: var(--primary); box-shadow: var(--shadow); }
+    .loan-plan-card.popular { border-color: var(--primary); background: linear-gradient(180deg, var(--primary-soft, #F0EAFB) 0%, var(--surface-2) 45%); }
+    .popular-badge { position: absolute; top: -10px; right: 16px; background: var(--gradient, linear-gradient(135deg, #6D28D9, #4C1D95)); color: #fff; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; padding: 4px 12px; border-radius: 999px; }
+    .loan-plan-card .lp-name { font-size: 15px; font-weight: 700; color: var(--text); }
+    .loan-plan-card .lp-rate { font-family: var(--font-display); font-size: 28px; font-weight: 800; color: var(--primary); }
+    .loan-plan-card .lp-rate small { font-size: 12px; font-weight: 600; color: var(--text-2); }
+    .loan-plan-card .lp-meta { font-size: 12px; color: var(--text-2); line-height: 1.6; }
+    .loan-plan-card .lp-desc { font-size: 12px; color: var(--text-3); line-height: 1.5; flex: 1; }
+    @media (max-width: 992px) { .loans-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <main class="main-content" id="main">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Loans</h1>
+        <p class="page-subtitle">Request a loan against your account and repay on flexible terms.</p>
+      </div>
+    </div>
+
+    <div class="loans-grid">
+      <div class="card reveal">
+        <div class="card-title mb-16"><i class="fas fa-hand-holding-dollar"></i> Request a Loan</div>
+        <div id="loanPlansWrap"></div>
+        <div style="display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:10px;background:#EFF6FF;border:1px solid #BFDBFE;color:#1D4ED8;font-size:13px;line-height:1.55;margin-bottom:16px;" class="loan-notice">
+          <i class="fas fa-circle-info" style="margin-top:2px;"></i>
+          <span><b>Before you borrow:</b> make sure you have completed identity verification (KYC) on the KYC page. A good credit score can improve the amount you qualify for, but loans are available even with a low credit score.</span>
+        </div>
+        <form id="loanForm">
+          <div class="form-group">
+            <label class="form-label">Select Loan Plan *</label>
+            <select class="select" id="planSelect" required>
+              <option value="">Loading loan plans...</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Loan Amount (USD) *</label>
+            <input type="number" class="input" id="loanAmount" min="1" step="0.01" placeholder="Enter amount" required>
+            <div class="form-hint mt-8" id="amountHint">Select a plan to see the allowed range.</div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Credit Score (Optional)</label>
+            <input type="number" class="input" id="creditScore" min="300" max="850" placeholder="e.g. 650">
+            <div class="form-hint mt-8">Used to generate the amount you qualify for. Loans are available even with a low credit score.</div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Purpose (Optional)</label>
+            <textarea class="textarea" id="loanPurpose" rows="3" placeholder="Briefly describe the purpose of this loan"></textarea>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-block" id="submitBtn"><i class="fas fa-paper-plane"></i> Request Loan</button>
+        </form>
+      </div>
+
+      <div>
+        <div class="card mb-16 reveal">
+          <div class="card-title mb-8"><i class="fas fa-circle-info"></i> Loan Information</div>
+          <div class="info-item"><div class="info-icon"><i class="fas fa-percent"></i></div><div><b>Competitive Rates</b><span>Low interest rates for all plans.</span></div></div>
+          <div class="info-item"><div class="info-icon"><i class="fas fa-calendar-check"></i></div><div><b>Flexible Terms</b><span>Choose the repayment duration that fits you.</span></div></div>
+          <div class="info-item"><div class="info-icon"><i class="fas fa-bolt"></i></div><div><b>Quick Approval</b><span>Fast processing within 24–48 hours.</span></div></div>
+        </div>
+
+        <div class="card reveal">
+          <div class="card-header">
+            <div class="card-title">My Loans</div>
+            <a href="transactions.html" class="btn btn-ghost btn-xs">View all</a>
+          </div>
+          <div id="myLoans"><div class="text-small text-muted">Loading...</div></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Repay modal -->
+  <div class="modal-overlay" id="repayModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Repay Loan</div>
+        <button class="modal-close" onclick="modal.close('repayModal')"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Repayment Amount (USD) *</label>
+          <input type="number" class="input" id="repayAmount" min="1" step="0.01" placeholder="Enter amount">
+          <div class="form-hint mt-8" id="repayHint"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="modal.close('repayModal')">Cancel</button>
+        <button class="btn btn-primary" id="repayBtn"><i class="fas fa-money-bill"></i> Submit Repayment</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    if (!auth.isLoggedIn()) {
+      window.location.href = '../login.html';
+    }
+
+    let LOAN_PLANS = [];
+    const STATUS_BADGE = { pending: 'badge-warning', approved: 'badge-success', active: 'badge-success', repaid: 'badge-muted', rejected: 'badge-danger', declined: 'badge-danger' };
+
+    async function loadPlans() {
+      const sel = document.getElementById('planSelect');
+      try {
+        const res = await api.get('/loan-plans');
+        if (!res || !res.success) { sel.innerHTML = '<option value="">Could not load plans</option>'; return; }
+        LOAN_PLANS = (res.data || []).filter(function (p) { return p.isActive !== false; });
+        if (!LOAN_PLANS.length) {
+          sel.innerHTML = '<option value="">No loan plans available</option>';
+          return;
+        }
+        sel.innerHTML = '<option value="">Select a loan plan</option>' + LOAN_PLANS.map(function (p, i) {
+          return '<option value="' + i + '">' + utils.escapeHtml(p.name) + ' — ' + p.interestRate + '% over ' + p.durationMonths + ' months (' + utils.formatCurrency(p.minAmount) + '–' + utils.formatCurrency(p.maxAmount) + ')</option>';
+        }).join('');
+        const wrap = document.getElementById('loanPlansWrap');
+        wrap.innerHTML = '<div class="loan-plans-grid">' + LOAN_PLANS.map(function (p, i) {
+          return '<div class="loan-plan-card' + (i === 1 ? ' popular' : '') + '" onclick="pickPlan(' + i + ')">' +
+            (i === 1 ? '<span class="popular-badge">Popular</span>' : '') +
+            '<div class="lp-name">' + utils.escapeHtml(p.name) + '</div>' +
+            '<div class="lp-rate">' + p.interestRate + '% <small>fixed interest</small></div>' +
+            '<div class="lp-meta"><i class="fas fa-calendar"></i> ' + p.durationMonths + ' months &nbsp;&middot;&nbsp; <i class="fas fa-money-bill"></i> ' + utils.formatCurrency(p.minAmount) + ' – ' + utils.formatCurrency(p.maxAmount) + '</div>' +
+            (p.description ? '<div class="lp-desc">' + utils.escapeHtml(p.description) + '</div>' : '') +
+          '</div>';
+        }).join('') + '</div>';
+      } catch (e) {
+        sel.innerHTML = '<option value="">Could not load plans</option>';
+      }
+    }
+
+    window.pickPlan = function (i) {
+      const sel = document.getElementById('planSelect');
+      if (!LOAN_PLANS[i]) return;
+      sel.value = String(i);
+      sel.dispatchEvent(new Event('change'));
+      sel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    };
+
+    document.getElementById('planSelect').addEventListener('change', function () {
+      const idx = this.value;
+      const hint = document.getElementById('amountHint');
+      if (idx === '' || !LOAN_PLANS[idx]) { hint.textContent = 'Select a plan to see the allowed range.'; return; }
+      const p = LOAN_PLANS[idx];
+      hint.textContent = 'Allowed range: ' + utils.formatCurrency(p.minAmount) + ' — ' + utils.formatCurrency(p.maxAmount) + ' at ' + p.interestRate + '% interest over ' + p.durationMonths + ' months.';
+    });
+
+    document.getElementById('loanForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const idx = document.getElementById('planSelect').value;
+      if (idx === '' || !LOAN_PLANS[idx]) { toast.error('Select a loan plan'); return; }
+      const amount = parseFloat(document.getElementById('loanAmount').value);
+      if (!amount || amount <= 0) { toast.error('Enter a valid amount'); return; }
+      const purposeRaw = document.getElementById('loanPurpose').value.trim();
+      const creditScore = document.getElementById('creditScore').value.trim();
+      const purpose = creditScore
+        ? '[Credit score: ' + creditScore + '] ' + purposeRaw
+        : purposeRaw;
+
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+      try {
+        const res = await api.post('/loans/request', { planId: LOAN_PLANS[idx]._id, amount: amount, purpose: purpose });
+        if (res && res.success) {
+          toast.success('Loan request submitted — pending approval');
+          document.getElementById('loanForm').reset();
+          document.getElementById('amountHint').textContent = 'Select a plan to see the allowed range.';
+          loadMyLoans();
+        } else if (kycGate.isKycError(res)) {
+          kycGate.show(res.message);
+        } else {
+          toast.error((res && res.message) || 'Loan request failed');
+        }
+      } catch (err) {
+        toast.error('Loan request failed. Please try again.');
+      }
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-paper-plane"></i> Request Loan';
+    });
+
+    async function loadMyLoans() {
+      const wrap = document.getElementById('myLoans');
+      try {
+        const res = await api.get('/loans?limit=6');
+        if (!res || !res.success) { wrap.innerHTML = '<div class="text-small text-muted">Could not load loans.</div>'; return; }
+        const list = res.data || [];
+        if (!list.length) {
+          wrap.innerHTML = '<div class="empty-state" style="padding:20px 0;"><div class="empty-icon"><i class="fas fa-hand-holding-dollar"></i></div><div class="empty-hint">No loans yet.</div></div>';
+          return;
+        }
+        wrap.innerHTML = list.map(function (l) {
+          const planName = (l.planId && l.planId.name) || 'Loan';
+          const when = l.createdAt ? new Date(l.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+          const total = l.totalRepayment || (l.amount + (l.amount * (l.interestRate || 0) / 100));
+          const repaid = l.repaidAmount || 0;
+          const pct = total > 0 ? Math.min(100, Math.round((repaid / total) * 100)) : 0;
+          const canRepay = (l.status === 'approved' || l.status === 'active') && repaid < total;
+          const progress = (l.status === 'approved' || l.status === 'active' || l.status === 'repaid')
+            ? '<div style="margin-top:6px;"><div class="text-small text-muted" style="display:flex;justify-content:space-between;"><span>Repaid ' + utils.formatCurrency(repaid) + ' of ' + utils.formatCurrency(total) + '</span><span>' + pct + '%</span></div>' +
+              '<div style="height:6px;border-radius:999px;background:var(--border-soft);overflow:hidden;margin-top:4px;"><span style="display:block;height:100%;width:' + pct + '%;background:var(--gradient);"></span></div>' +
+              (l.monthlyPayment ? '<div class="text-small text-muted" style="margin-top:4px;">Monthly payment: ' + utils.formatCurrency(l.monthlyPayment) + '</div>' : '') + '</div>'
+            : '';
+          return '<div class="loan-item">' +
+            '<div style="flex:1;min-width:0;"><div class="amt">' + utils.formatCurrency(l.amount) + '</div><div class="sub">' + utils.escapeHtml(planName) + (when ? ' &middot; ' + when : '') + '</div>' + progress + '</div>' +
+            '<div style="text-align:right;flex-shrink:0;">' +
+              '<span class="badge ' + (STATUS_BADGE[l.status] || 'badge-muted') + '">' + utils.escapeHtml(l.status || 'pending') + '</span>' +
+              (canRepay ? '<div style="margin-top:6px;"><button class="btn btn-primary btn-xs" onclick="openRepay(\'' + l._id + '\', ' + JSON.stringify(total).replace(/"/g, '&quot;') + ', ' + (l.monthlyPayment || 0) + ')"><i class="fas fa-money-bill"></i> Repay</button></div>' : '') +
+            '</div>' +
+          '</div>';
+        }).join('');
+      } catch (e) {
+        wrap.innerHTML = '<div class="text-small text-muted">Could not load loans.</div>';
+      }
+    }
+
+    let repayState = { loanId: null, idempotencyKey: null, total: 0 };
+
+    window.openRepay = function (loanId, total, monthlyPayment) {
+      repayState.loanId = loanId;
+      repayState.total = total;
+      repayState.idempotencyKey = (crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()) + Math.random();
+      document.getElementById('repayAmount').value = monthlyPayment > 0 ? monthlyPayment : '';
+      document.getElementById('repayHint').textContent = 'Total repayment due: ' + utils.formatCurrency(total) + '. Repayments are debited from your checking balance.';
+      modal.open('repayModal');
+    };
+
+    document.getElementById('repayBtn').addEventListener('click', async function () {
+      if (!repayState.loanId) return;
+      const amount = parseFloat(document.getElementById('repayAmount').value);
+      if (!amount || amount <= 0) { toast.error('Enter a valid repayment amount'); return; }
+      const btn = this;
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+      try {
+        const res = await api.post('/loans/' + repayState.loanId + '/repay', {
+          amount: amount,
+          idempotencyKey: repayState.idempotencyKey
+        });
+        if (res && res.success) {
+          toast.success('Repayment submitted');
+          modal.close('repayModal');
+          loadMyLoans();
+        } else {
+          toast.error((res && res.message) || 'Repayment failed');
+        }
+      } catch (err) {
+        toast.error('Repayment failed. Please try again.');
+      }
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-money-bill"></i> Submit Repayment';
+    });
+
+    loadPlans();
+    loadMyLoans();
+  </script>
+</body>
+</html>

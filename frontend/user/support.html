@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Support - BrightVale Finance</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script>window.PAGE_CONFIG = { role: 'user', active: 'support', title: 'Support' };</script>
+  <script src="../js/main.js"></script>
+  <style>
+    .support-grid { display: grid; grid-template-columns: 1.25fr .75fr; gap: 20px; align-items: start; }
+    .channel-card { display: flex; gap: 12px; align-items: center; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 16px; background: var(--surface-2); transition: all .15s ease; }
+    .channel-card + .channel-card { margin-top: 10px; }
+    .channel-card:hover { border-color: var(--primary); }
+    .channel-icon { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 17px; flex-shrink: 0; background: var(--primary-soft); color: var(--primary); }
+    .channel-card b { display: block; font-size: 13px; color: var(--text); }
+    .channel-card span { font-size: 12px; color: var(--text-2); word-break: break-all; }
+    .thread-scroll { max-height: 420px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 4px 2px; }
+    .bubble { max-width: 75%; padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+    .bubble.user { align-self: flex-end; background: var(--gradient); color: #fff; border-bottom-right-radius: 4px; }
+    .bubble.admin { align-self: flex-start; background: var(--surface-2); color: var(--text); border-bottom-left-radius: 4px; }
+    .bubble .bubble-time { display: block; font-size: 11px; opacity: .7; margin-top: 4px; }
+    .live-dot { width: 8px; height: 8px; border-radius: 50%; background: #16A34A; display: inline-block; margin-right: 6px; animation: ccPulse 1.6s ease infinite; }
+    @keyframes ccPulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+    @media (max-width: 992px) { .support-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <main class="main-content" id="main">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Support</h1>
+        <p class="page-subtitle">Get help with your account, deposits, withdrawals, or anything else.</p>
+      </div>
+    </div>
+
+    <div class="support-grid">
+      <div>
+        <div class="card mb-16 reveal">
+          <div class="card-title mb-16"><i class="fas fa-envelope"></i> Contact Support</div>
+          <form id="supportForm">
+            <div class="form-group">
+              <label class="form-label">Subject *</label>
+              <select class="select" id="supportSubject" required>
+                <option value="">Select a topic</option>
+                <option value="Deposit issue">Deposit issue</option>
+                <option value="Withdrawal issue">Withdrawal issue</option>
+                <option value="Investment question">Investment question</option>
+                <option value="Loan question">Loan question</option>
+                <option value="KYC verification">KYC verification</option>
+                <option value="Account access">Account access</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Message *</label>
+              <textarea class="textarea" id="supportMessage" rows="5" placeholder="Describe your issue in detail so our team can help you faster" required></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block" id="submitBtn"><i class="fas fa-paper-plane"></i> Send Message</button>
+          </form>
+        </div>
+
+        <div class="card reveal">
+          <div class="card-header">
+            <div class="card-title"><i class="fas fa-comments"></i> Live Chat with Support <span class="text-small text-muted" style="font-weight:500;"><span class="live-dot"></span>Live</span></div>
+          </div>
+          <div class="thread-scroll" id="threadWrap"><div class="text-small text-muted">Loading...</div></div>
+          <div class="flex gap-8 mt-16">
+            <input type="text" class="input" id="chatReplyInput" placeholder="Type a reply to support..." onkeydown="if(event.key==='Enter')sendChatReply()">
+            <button class="btn btn-primary" id="chatReplyBtn" onclick="sendChatReply()"><i class="fas fa-paper-plane"></i> Send</button>
+          </div>
+          <p class="form-hint mt-8">Replies appear here instantly — the chat refreshes itself every few seconds.</p>
+        </div>
+      </div>
+
+      <div>
+        <div class="card mb-16 reveal">
+          <div class="card-title mb-16"><i class="fas fa-headset"></i> Direct Channels</div>
+          <div id="channelsWrap">
+            <div class="channel-card">
+              <div class="channel-icon"><i class="fas fa-envelope"></i></div>
+              <div><b>Email</b><span id="supportEmail">support@brightvale.com</span></div>
+            </div>
+            <div class="channel-card">
+              <div class="channel-icon"><i class="fab fa-whatsapp"></i></div>
+              <div><b>WhatsApp</b><span id="supportWhatsapp">Available in settings</span></div>
+            </div>
+            <div class="channel-card">
+              <div class="channel-icon"><i class="fab fa-telegram"></i></div>
+              <div><b>Telegram</b><span id="supportTelegram">Available in settings</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card reveal">
+          <div class="card-title mb-8"><i class="fas fa-circle-info"></i> Before You Reach Out</div>
+          <div class="text-small text-muted" style="line-height:1.7;">
+            Deposits and withdrawals are reviewed within 24–48 hours.<br>
+            KYC review typically takes 1–2 business days.<br>
+            Include your account email in every message for faster help.
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    if (!auth.isLoggedIn()) {
+      window.location.href = '../login.html';
+    }
+
+    document.getElementById('supportForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const subject = document.getElementById('supportSubject').value;
+      const body = document.getElementById('supportMessage').value.trim();
+      if (!subject) { toast.error('Select a topic'); return; }
+      if (!body) { toast.error('Enter your message'); return; }
+
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+      try {
+        const res = await api.post('/messages', { message: '[Ticket] ' + subject + ': ' + body });
+        if (res && res.success) {
+          toast.success('Message sent — our team will reply soon');
+          document.getElementById('supportForm').reset();
+          loadThread();
+        } else {
+          toast.error((res && res.message) || 'Could not send message');
+        }
+      } catch (err) {
+        toast.error('Could not send message. Please try again.');
+      }
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Message';
+    });
+
+    async function loadChannels() {
+      try {
+        const res = await api.get('/settings');
+        if (!res || !res.success || !res.data) return;
+        if (res.data.supportEmail) document.getElementById('supportEmail').textContent = res.data.supportEmail;
+        if (res.data.whatsappNumber) document.getElementById('supportWhatsapp').textContent = res.data.whatsappNumber;
+        if (res.data.telegramLink) document.getElementById('supportTelegram').textContent = res.data.telegramLink;
+      } catch (e) { /* keep defaults */ }
+    }
+
+    let threadUid = null;
+
+    async function resolveUid() {
+      if (threadUid) return threadUid;
+      const me = auth.getUser() || {};
+      threadUid = me._id || me.id;
+      if (!threadUid) {
+        const prof = await api.get('/user/profile');
+        if (prof && prof.success && prof.data) threadUid = prof.data._id || prof.data.id;
+      }
+      return threadUid;
+    }
+
+    async function sendChatReply() {
+      const input = document.getElementById('chatReplyInput');
+      const message = input.value.trim();
+      if (!message) return;
+      const btn = document.getElementById('chatReplyBtn');
+      btn.disabled = true;
+      try {
+        const res = await api.post('/messages', { message });
+        if (res && res.success) {
+          input.value = '';
+          await loadThread(true);
+          const wrap = document.getElementById('threadWrap');
+          wrap.scrollTop = wrap.scrollHeight;
+        } else {
+          toast.error((res && res.message) || 'Could not send message');
+        }
+      } catch (err) {
+        toast.error('Could not send message. Please try again.');
+      }
+      btn.disabled = false;
+      input.focus();
+    }
+
+    async function loadThread(silent) {
+      const wrap = document.getElementById('threadWrap');
+      try {
+        const uid = await resolveUid();
+        if (!uid) { wrap.innerHTML = '<div class="text-small text-muted">Sign in again to view your conversation history.</div>'; return; }
+
+        const res = await api.get('/messages/' + uid + '?limit=50');
+        if (!res || !res.success) {
+          if (!wrap.dataset.loaded) wrap.innerHTML = '<div class="text-small text-muted">Could not load your conversation.</div>';
+          return;
+        }
+        const list = res.data || [];
+        wrap.dataset.loaded = '1';
+        if (!list.length) {
+          wrap.innerHTML = '<div class="empty-state" style="padding:16px 0;"><div class="empty-icon"><i class="fas fa-comments"></i></div><div class="empty-hint">No messages yet. Send us a message above and the reply will appear here.</div></div>';
+          return;
+        }
+        const nearBottom = wrap.scrollHeight - wrap.scrollTop - wrap.clientHeight < 60;
+        wrap.innerHTML = list.map(function (m) {
+          const isUser = m.sender === 'user';
+          const when = m.createdAt ? new Date(m.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+          return '<div class="bubble ' + (isUser ? 'user' : 'admin') + '">' +
+            utils.escapeHtml(m.message || '') +
+            (when ? '<span class="bubble-time">' + when + '</span>' : '') +
+          '</div>';
+        }).join('');
+        if (nearBottom || !silent) wrap.scrollTop = wrap.scrollHeight;
+        // Viewing the thread marks admin messages as read server-side; refresh badges.
+        if (window.messageNotifier) messageNotifier.checkMessages();
+      } catch (e) {
+        if (!wrap.dataset.loaded) wrap.innerHTML = '<div class="text-small text-muted">Could not load your conversation.</div>';
+      }
+    }
+
+    loadChannels();
+    loadThread();
+    setInterval(loadThread, 4000);
+  </script>
+</body>
+</html>

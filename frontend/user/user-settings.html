@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings - BrightVale Finance</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script>
+    // Resolve 'system' theme preference before main.js applies the stored theme,
+    // so there is no flash of the wrong theme on load.
+    (function () {
+      try {
+        var pref = localStorage.getItem('brightvale-theme-pref');
+        if (pref === 'system') {
+          var dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+        }
+      } catch (e) { /* storage unavailable */ }
+    })();
+  </script>
+  <script>
+    window.PAGE_CONFIG = { role: 'user', active: 'settings', title: 'Settings' };
+  </script>
+  <script src="../js/main.js"></script>
+  <style>
+    /* Page-scoped styles — the shared stylesheet is not edited. */
+
+    .settings-tabs {
+      margin-bottom: 20px;
+    }
+
+    .settings-panel {
+      display: none;
+      max-width: 760px;
+    }
+
+    .settings-panel.active {
+      display: block;
+    }
+
+    .settings-panel .card + .card {
+      margin-top: 20px;
+    }
+
+    /* Larger avatar preview (design-system .avatar-xl is 72px) */
+    .avatar-96 {
+      width: 96px;
+      height: 96px;
+      font-size: 32px;
+    }
+
+    .photo-zone {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+
+    .avatar-drop {
+      position: relative;
+      border-radius: 50%;
+      outline: 2px dashed transparent;
+      outline-offset: 6px;
+      transition: outline-color .2s ease;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .avatar-drop.dragover {
+      outline-color: var(--primary);
+    }
+
+    .avatar-drop .drop-hint {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: color-mix(in srgb, var(--text) 55%, transparent);
+      color: var(--surface);
+      font-size: 12px;
+      font-weight: 600;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 12px;
+    }
+
+    .avatar-drop.dragover .drop-hint {
+      display: flex;
+    }
+
+    .photo-meta {
+      flex: 1;
+      min-width: 220px;
+    }
+
+    .avatar-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    /* Info rows (security tab) */
+    .info-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--border-soft);
+      flex-wrap: wrap;
+    }
+
+    .info-row:last-child {
+      border-bottom: none;
+    }
+
+    .info-row .info-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-2);
+    }
+
+    .info-row .info-value {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    /* Theme option cards (preferences tab) */
+    .theme-options {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .theme-option {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      padding: 16px 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-2);
+      transition: border-color .2s ease, background-color .2s ease, color .2s ease;
+    }
+
+    .theme-option i {
+      font-size: 20px;
+    }
+
+    .theme-option:hover {
+      border-color: var(--primary);
+      color: var(--text);
+    }
+
+    .theme-option.active {
+      border-color: var(--primary);
+      background: var(--primary-soft);
+      color: var(--primary);
+    }
+
+    /* Toggle switch (purely local notification preferences) */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border-soft);
+    }
+
+    .toggle-row:last-child {
+      border-bottom: none;
+    }
+
+    .toggle-row .toggle-text {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .toggle-row .toggle-sub {
+      font-size: 12px;
+      color: var(--text-3);
+      margin-top: 2px;
+    }
+
+    .switch {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+      position: absolute;
+    }
+
+    .switch .track {
+      position: absolute;
+      inset: 0;
+      border-radius: 999px;
+      background: var(--border);
+      transition: background-color .2s ease;
+    }
+
+    .switch .track::after {
+      content: '';
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--surface);
+      box-shadow: var(--shadow-sm);
+      transition: transform .2s ease;
+    }
+
+    .switch input:checked + .track {
+      background: var(--primary);
+    }
+
+    .switch input:checked + .track::after {
+      transform: translateX(20px);
+    }
+
+    @media (max-width: 640px) {
+      .theme-options {
+        grid-template-columns: 1fr;
+      }
+
+      .photo-zone {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="main-content" id="main">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Settings</h1>
+        <p class="page-subtitle">Manage your profile, security, and preferences</p>
+      </div>
+    </div>
+
+    <div class="tabs settings-tabs" role="tablist">
+      <button class="tab active" data-tab="profile" role="tab"><i class="fas fa-user"></i> Profile</button>
+      <button class="tab" data-tab="security" role="tab"><i class="fas fa-shield-halved"></i> Security</button>
+      <button class="tab" data-tab="preferences" role="tab"><i class="fas fa-sliders"></i> Preferences</button>
+    </div>
+
+    <!-- ============ PROFILE TAB ============ -->
+    <section class="settings-panel active" id="panel-profile">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Profile Photo</div>
+            <p class="text-small text-muted">JPG, JPEG, PNG or WebP — max 5 MB</p>
+          </div>
+        </div>
+        <div class="photo-zone">
+          <div class="avatar-drop" id="avatarDrop" title="Drag &amp; drop a photo here or click to browse">
+            <span id="avatarPreview"></span>
+            <span class="drop-hint"><i class="fas fa-cloud-arrow-up"></i> Drop to preview</span>
+          </div>
+          <div class="photo-meta">
+            <div style="font-weight: 700;" id="photoName">—</div>
+            <div class="text-small text-muted" id="photoEmail">—</div>
+            <div class="avatar-actions" id="avatarActions"></div>
+            <input type="file" id="photoInput" accept="image/jpeg,image/jpg,image/png,image/webp" hidden>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Personal Information</div>
+        </div>
+        <form id="profileForm" novalidate>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="inputName">Full Name</label>
+              <input type="text" class="input" id="inputName" placeholder="Your full name" autocomplete="name">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="inputEmail">Email</label>
+              <input type="email" class="input" id="inputEmail" disabled>
+              <p class="form-hint">Email cannot be changed</p>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="inputPhone">Phone</label>
+              <input type="tel" class="input" id="inputPhone" placeholder="+1 555 000 0000" autocomplete="tel">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="inputCountry">Country</label>
+              <select class="select" id="inputCountry">
+                <option value="">Select a country</option>
+                <option>United States</option>
+                <option>United Kingdom</option>
+                <option>Canada</option>
+                <option>Australia</option>
+                <option>Germany</option>
+                <option>France</option>
+                <option>Netherlands</option>
+                <option>Spain</option>
+                <option>Italy</option>
+                <option>Switzerland</option>
+                <option>Sweden</option>
+                <option>Norway</option>
+                <option>United Arab Emirates</option>
+                <option>Saudi Arabia</option>
+                <option>India</option>
+                <option>Japan</option>
+                <option>Singapore</option>
+                <option>Brazil</option>
+                <option>Mexico</option>
+                <option>South Africa</option>
+                <option>Nigeria</option>
+                <option>Kenya</option>
+              </select>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary" id="saveProfileBtn"><i class="fas fa-floppy-disk"></i> Save Changes</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Sessions</div>
+            <p class="text-small text-muted">Signing out ends your current session on this device.</p>
+          </div>
+          <button class="btn btn-danger-soft btn-sm" id="logoutBtn"><i class="fas fa-right-from-bracket"></i> Logout</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SECURITY TAB ============ -->
+    <section class="settings-panel" id="panel-security">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Current Session</div>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Signed in as</span>
+          <span class="info-value" id="secEmail">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Account role</span>
+          <span class="info-value"><span class="badge badge-primary" id="secRole">Investor</span></span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Member since</span>
+          <span class="info-value" id="secMemberSince">—</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Identity Verification (KYC)</div>
+        </div>
+        <div class="info-row">
+          <span class="info-label">KYC status</span>
+          <span class="info-value">
+            <span class="badge badge-muted" id="kycBadge"><i class="fas fa-circle-notch fa-spin"></i> Checking…</span>
+            <a href="kyc.html" class="text-small" id="kycVerifyLink" style="display:none;">Verify now <i class="fas fa-arrow-right"></i></a>
+          </span>
+        </div>
+        <p class="text-small text-muted mt-8">Verified accounts unlock higher deposit and withdrawal limits.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Wallet</div>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Wallet &amp; payout settings</span>
+          <a class="btn btn-ghost btn-sm" href="wallet-settings.html"><i class="fas fa-wallet"></i> Open wallet settings</a>
+        </div>
+        <p class="text-small text-muted">Manage your BTC wallet address and bank details used for withdrawals.</p>
+      </div>
+    </section>
+
+    <!-- ============ PREFERENCES TAB ============ -->
+    <section class="settings-panel" id="panel-preferences">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Theme</div>
+            <p class="text-small text-muted">'System' follows your device's appearance.</p>
+          </div>
+        </div>
+        <div class="theme-options" id="themeOptions">
+          <button type="button" class="theme-option" data-theme-choice="light"><i class="fas fa-sun"></i> Light</button>
+          <button type="button" class="theme-option" data-theme-choice="dark"><i class="fas fa-moon"></i> Dark</button>
+          <button type="button" class="theme-option" data-theme-choice="system"><i class="fas fa-desktop"></i> System</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Notifications</div>
+            <p class="text-small text-muted">Stored on this device only.</p>
+          </div>
+        </div>
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-text">Deposits</div>
+            <div class="toggle-sub">Deposit request updates and confirmations</div>
+          </div>
+          <label class="switch"><input type="checkbox" data-pref="deposits"><span class="track"></span></label>
+        </div>
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-text">Withdrawals</div>
+            <div class="toggle-sub">Withdrawal status changes</div>
+          </div>
+          <label class="switch"><input type="checkbox" data-pref="withdrawals"><span class="track"></span></label>
+        </div>
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-text">Investments &amp; Loans</div>
+            <div class="toggle-sub">Maturity, return and repayment updates</div>
+          </div>
+          <label class="switch"><input type="checkbox" data-pref="investments"><span class="track"></span></label>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Language</div>
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+          <label class="form-label" for="languageSelect">Interface language</label>
+          <select class="select" id="languageSelect" disabled>
+            <option>English</option>
+          </select>
+          <p class="form-hint">Additional languages are being added.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Remove photo confirmation modal -->
+  <div class="modal-overlay" id="removePhotoModal">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <div class="modal-title">Remove profile photo?</div>
+        <button class="modal-close" onclick="modal.close('removePhotoModal')"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-small text-muted" style="font-size:14px;">Your photo will be deleted and your avatar will fall back to your initials across BrightVale Finance.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="modal.close('removePhotoModal')">Cancel</button>
+        <button class="btn btn-danger-soft" id="confirmRemovePhoto"><i class="fas fa-trash"></i> Remove Photo</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Guard — the shell also enforces auth, but double-check before touching data.
+    auth.requireAuth();
+
+    var MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+    var ALLOWED_PHOTO_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    var NOTIF_PREFS_KEY = 'notifPrefs';
+    var THEME_PREF_KEY = 'brightvale-theme-pref';
+    var DEFAULT_NOTIF_PREFS = { deposits: true, withdrawals: true, investments: true };
+
+    // ---------------- Tabs ----------------
+    document.querySelectorAll('.settings-tabs .tab').forEach(function (tab) {
+      tab.addEventListener('click', function () {
+        document.querySelectorAll('.settings-tabs .tab').forEach(function (t) { t.classList.remove('active'); });
+        document.querySelectorAll('.settings-panel').forEach(function (p) { p.classList.remove('active'); });
+        tab.classList.add('active');
+        document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+      });
+    });
+
+    // ---------------- Profile photo state ----------------
+    var pendingFile = null;   // File waiting in preview (edit mode)
+    var pendingDataUrl = null;
+    var savingPhoto = false;
+
+    var avatarPreview = document.getElementById('avatarPreview');
+    var avatarActions = document.getElementById('avatarActions');
+    var avatarDrop = document.getElementById('avatarDrop');
+    var photoInput = document.getElementById('photoInput');
+
+    function currentUser() {
+      return auth.getUser() || {};
+    }
+
+    function renderAvatarPreview() {
+      if (pendingDataUrl) {
+        avatarPreview.innerHTML = '<img class="avatar avatar-xl avatar-96" src="' + pendingDataUrl + '" alt="Photo preview">';
+      } else if (typeof avatarHtml === 'function') {
+        avatarPreview.innerHTML = avatarHtml(auth.getUser(), 'avatar-xl avatar-96');
+      } else {
+        // Fallback if avatarHtml is unavailable: img-or-initials built by hand.
+        var u = currentUser();
+        var pic = u.profilePicture || u.avatar;
+        if (pic) {
+          var src = pic.indexOf('http') === 0 ? pic : SERVER_BASE_URL + (pic.charAt(0) === '/' ? '' : '/') + pic;
+          avatarPreview.innerHTML = '<img class="avatar avatar-xl avatar-96" src="' + src + '" alt="' + utils.escapeHtml(u.name || 'User') + '">';
+        } else {
+          avatarPreview.innerHTML = '<div class="avatar avatar-xl avatar-96">' + utils.getInitials(u.name) + '</div>';
+        }
+      }
+    }
+
+    function renderAvatarActions() {
+      var hasPhoto = !!(currentUser().profilePicture || currentUser().avatar);
+      var html = '';
+      if (pendingDataUrl) {
+        html += '<button class="btn btn-primary btn-sm" id="savePhotoBtn"' + (savingPhoto ? ' disabled' : '') + '>' +
+          '<i class="fas fa-floppy-disk"></i> ' + (savingPhoto ? 'Saving…' : 'Save Photo') + '</button>';
+        html += '<button class="btn btn-ghost btn-sm" id="cancelPhotoBtn"><i class="fas fa-xmark"></i> Cancel</button>';
+      } else {
+        html += '<button class="btn btn-primary btn-sm" id="uploadPhotoBtn"><i class="fas fa-upload"></i> ' +
+          (hasPhoto ? 'Change Photo' : 'Upload Photo') + '</button>';
+        if (hasPhoto) {
+          html += '<button class="btn btn-danger-soft btn-sm" id="removePhotoBtn"><i class="fas fa-trash"></i> Remove Photo</button>';
+        }
+      }
+      avatarActions.innerHTML = html;
+
+      var uploadBtn = document.getElementById('uploadPhotoBtn');
+      if (uploadBtn) uploadBtn.addEventListener('click', function () { photoInput.click(); });
+      var saveBtn = document.getElementById('savePhotoBtn');
+      if (saveBtn) saveBtn.addEventListener('click', savePhoto);
+      var cancelBtn = document.getElementById('cancelPhotoBtn');
+      if (cancelBtn) cancelBtn.addEventListener('click', discardPreview);
+      var removeBtn = document.getElementById('removePhotoBtn');
+      if (removeBtn) removeBtn.addEventListener('click', function () { modal.open('removePhotoModal'); });
+    }
+
+    function refreshPhotoUI() {
+      renderAvatarPreview();
+      renderAvatarActions();
+    }
+
+    function acceptFile(file) {
+      if (!file) return;
+      if (ALLOWED_PHOTO_TYPES.indexOf(file.type) === -1) {
+        toast.error('Unsupported file type. Use JPG, JPEG, PNG or WebP.');
+        resetPicker();
+        return;
+      }
+      if (file.size > MAX_PHOTO_BYTES) {
+        toast.error('Image exceeds the 5 MB size limit.');
+        resetPicker();
+        return;
+      }
+      var reader = new FileReader();
+      reader.onload = function (e) {
+        pendingFile = file;
+        pendingDataUrl = e.target.result;
+        avatarDrop.classList.remove('dragover');
+        refreshPhotoUI();
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function resetPicker() {
+      photoInput.value = '';
+      avatarDrop.classList.remove('dragover');
+    }
+
+    function discardPreview() {
+      pendingFile = null;
+      pendingDataUrl = null;
+      resetPicker();
+      refreshPhotoUI();
+    }
+
+    function syncTopbarAvatar(user) {
+      if (typeof window.refreshAvatar === 'function') {
+        window.refreshAvatar(user || auth.getUser());
+      } else {
+        // Fallback: update the shell avatars directly if refreshAvatar is absent.
+        if (user) auth.updateUser(user);
+        var fresh = auth.getUser();
+        var toggle = document.getElementById('profileToggle');
+        if (toggle && typeof avatarHtml === 'function') toggle.innerHTML = avatarHtml(fresh);
+        var dropdownAvatar = document.getElementById('dropdownAvatar');
+        if (dropdownAvatar && typeof avatarHtml === 'function') dropdownAvatar.innerHTML = avatarHtml(fresh, 'avatar-lg');
+      }
+    }
+
+    async function savePhoto() {
+      if (!pendingFile || savingPhoto) return;
+      savingPhoto = true;
+      renderAvatarActions();
+      try {
+        var formData = new FormData();
+        formData.append('profile', pendingFile);
+        var res = await api.post('/user/profile-picture', formData, true);
+        if (res && res.success) {
+          var newPath = res.data && res.data.profilePicture;
+          var freshUser = (res.data && res.data.user) || auth.getUser();
+          auth.updateUser({ profilePicture: newPath || (freshUser && freshUser.profilePicture) || '' });
+          syncTopbarAvatar(freshUser);
+          toast.success('Profile photo updated');
+          pendingFile = null;
+          pendingDataUrl = null;
+          resetPicker();
+          refreshPhotoUI();
+        } else {
+          toast.error((res && res.message) || 'Upload failed. Please try again.');
+        }
+      } catch (err) {
+        toast.error('Upload failed. Please try again.');
+      } finally {
+        savingPhoto = false;
+        renderAvatarActions();
+      }
+    }
+
+    photoInput.addEventListener('change', function () {
+      acceptFile(photoInput.files[0]);
+    });
+
+    // Drag & drop onto the avatar preview area
+    ['dragenter', 'dragover'].forEach(function (evt) {
+      avatarDrop.addEventListener(evt, function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        avatarDrop.classList.add('dragover');
+      });
+    });
+    ['dragleave', 'drop'].forEach(function (evt) {
+      avatarDrop.addEventListener(evt, function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (evt === 'dragleave' && avatarDrop.contains(e.relatedTarget)) return;
+        avatarDrop.classList.remove('dragover');
+      });
+    });
+    avatarDrop.addEventListener('drop', function (e) {
+      var file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      acceptFile(file);
+    });
+
+    document.getElementById('confirmRemovePhoto').addEventListener('click', async function () {
+      var btn = this;
+      btn.disabled = true;
+      try {
+        var res = await api.delete('/user/profile-picture');
+        if (res && res.success) {
+          auth.updateUser({ profilePicture: '' });
+          syncTopbarAvatar(res.data && res.data.user);
+          toast.success('Profile photo removed');
+          modal.close('removePhotoModal');
+          refreshPhotoUI();
+        } else {
+          toast.error((res && res.message) || 'Could not remove photo.');
+        }
+      } catch (err) {
+        toast.error('Could not remove photo.');
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    // ---------------- Personal information ----------------
+    function fillProfileForm() {
+      var u = currentUser();
+      document.getElementById('inputName').value = u.name || '';
+      document.getElementById('inputEmail').value = u.email || '';
+      document.getElementById('inputPhone').value = u.phone || '';
+      var countrySel = document.getElementById('inputCountry');
+      var country = u.country || '';
+      var matched = false;
+      Array.prototype.forEach.call(countrySel.options, function (opt) {
+        if (opt.value === country || opt.text === country) matched = true;
+      });
+      if (country && !matched) {
+        var opt = document.createElement('option');
+        opt.text = country;
+        opt.value = country;
+        countrySel.add(opt);
+      }
+      countrySel.value = country;
+    }
+
+    document.getElementById('profileForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      var u = currentUser();
+      var name = document.getElementById('inputName').value.trim();
+      var phone = document.getElementById('inputPhone').value.trim();
+      var country = document.getElementById('inputCountry').value;
+
+      if (!name) {
+        toast.error('Name cannot be empty.');
+        return;
+      }
+
+      // Only send fields that actually changed
+      var payload = {};
+      if (name !== (u.name || '')) payload.name = name;
+      if (phone !== (u.phone || '')) payload.phone = phone;
+      if (country !== (u.country || '')) payload.country = country;
+
+      if (Object.keys(payload).length === 0) {
+        toast.info('No changes to save.');
+        return;
+      }
+
+      var btn = document.getElementById('saveProfileBtn');
+      btn.disabled = true;
+      try {
+        var res = await api.put('/user/update-profile', payload);
+        if (res && res.success) {
+          auth.updateUser(res.data || payload);
+          fillProfileForm(); // normalize field state after save
+          fillSessionInfo();
+          syncTopbarAvatar(res.data);
+          toast.success('Profile updated successfully');
+        } else {
+          toast.error((res && res.message) || 'Could not save profile.');
+        }
+      } catch (err) {
+        toast.error('Could not save profile.');
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    // ---------------- Security tab ----------------
+    function fillSessionInfo() {
+      var u = currentUser();
+      document.getElementById('secEmail').textContent = u.email || '—';
+      var roleBadge = document.getElementById('secRole');
+      if (u.role === 'admin') roleBadge.textContent = 'Administrator';
+      else roleBadge.textContent = 'Member';
+      document.getElementById('secMemberSince').textContent = u.createdAt ? utils.formatDate(u.createdAt) : '—';
+      // Local cache may not include createdAt — refresh from the server profile
+      api.get('/user/profile').then(function (res) {
+        if (res && res.success && res.data && res.data.createdAt) {
+          document.getElementById('secMemberSince').textContent = utils.formatDate(res.data.createdAt);
+        }
+      }).catch(function () { /* keep cached value */ });
+    }
+
+    function renderKycBadge(status) {
+      var badge = document.getElementById('kycBadge');
+      var link = document.getElementById('kycVerifyLink');
+      var map = {
+        approved: { cls: 'badge badge-success', label: '<i class="fas fa-circle-check"></i> Verified' },
+        pending: { cls: 'badge badge-warning', label: '<i class="fas fa-clock"></i> Pending review' },
+        rejected: { cls: 'badge badge-danger', label: '<i class="fas fa-circle-xmark"></i> Rejected' }
+      };
+      var entry = map[status] || { cls: 'badge badge-muted', label: '<i class="fas fa-circle-question"></i> Not verified' };
+      badge.className = entry.cls;
+      badge.innerHTML = entry.label;
+      link.style.display = status === 'approved' ? 'none' : '';
+    }
+
+    async function loadKycStatus() {
+      var cached = currentUser().kycStatus;
+      if (cached) renderKycBadge(cached);
+      try {
+        var res = await api.get('/kyc');
+        if (res && res.success && res.data) {
+          var status = res.data.status || cached || 'not_submitted';
+          renderKycBadge(status);
+          if (res.data.status && res.data.status !== cached) {
+            auth.updateUser({ kycStatus: res.data.status });
+          }
+        }
+      } catch (err) {
+        if (cached) renderKycBadge(cached);
+        else renderKycBadge('not_submitted');
+      }
+    }
+
+    // ---------------- Preferences: theme ----------------
+    var systemMedia = null;
+
+    function applySystemTheme() {
+      var resolved = (systemMedia && systemMedia.matches) ? 'dark' : 'light';
+      document.documentElement.dataset.theme = resolved;
+      try { localStorage.setItem('brightvale-theme', resolved); } catch (e) { /* ignore */ }
+    }
+
+    function applyThemeChoice(choice, silent) {
+      try { localStorage.setItem(THEME_PREF_KEY, choice); } catch (e) { /* ignore */ }
+      if (systemMedia) {
+        systemMedia.removeEventListener('change', applySystemTheme);
+        systemMedia = null;
+      }
+      if (choice === 'system') {
+        systemMedia = window.matchMedia('(prefers-color-scheme: dark)');
+        systemMedia.addEventListener('change', applySystemTheme);
+        applySystemTheme();
+      } else {
+        theme.set(choice); // persists via main.js so the next load is consistent
+      }
+      highlightThemeChoice(choice);
+      if (!silent) toast.success('Theme preference saved');
+    }
+
+    function highlightThemeChoice(choice) {
+      document.querySelectorAll('.theme-option').forEach(function (opt) {
+        opt.classList.toggle('active', opt.dataset.themeChoice === choice);
+      });
+    }
+
+    document.querySelectorAll('.theme-option').forEach(function (opt) {
+      opt.addEventListener('click', function () {
+        applyThemeChoice(opt.dataset.themeChoice);
+      });
+    });
+
+    function initThemeChoice() {
+      var choice = 'light';
+      try { choice = localStorage.getItem(THEME_PREF_KEY) || 'light'; } catch (e) { /* ignore */ }
+      if (choice !== 'light' && choice !== 'dark' && choice !== 'system') choice = 'light';
+      // Wire the system listener without persisting/toasting again.
+      if (choice === 'system') {
+        systemMedia = window.matchMedia('(prefers-color-scheme: dark)');
+        systemMedia.addEventListener('change', applySystemTheme);
+      }
+      highlightThemeChoice(choice);
+    }
+
+    // ---------------- Preferences: notification toggles ----------------
+    function loadNotifPrefs() {
+      var prefs = {};
+      try {
+        prefs = JSON.parse(localStorage.getItem(NOTIF_PREFS_KEY)) || {};
+      } catch (e) { prefs = {}; }
+      var merged = Object.assign({}, DEFAULT_NOTIF_PREFS, prefs);
+      document.querySelectorAll('.switch input[data-pref]').forEach(function (input) {
+        input.checked = merged[input.dataset.pref] !== false;
+      });
+    }
+
+    document.querySelectorAll('.switch input[data-pref]').forEach(function (input) {
+      input.addEventListener('change', function () {
+        var prefs = {};
+        try {
+          prefs = JSON.parse(localStorage.getItem(NOTIF_PREFS_KEY)) || {};
+        } catch (e) { prefs = {}; }
+        prefs[input.dataset.pref] = input.checked;
+        try {
+          localStorage.setItem(NOTIF_PREFS_KEY, JSON.stringify(prefs));
+          toast.success('Notification preference saved');
+        } catch (e) {
+          toast.error('Could not store preference on this device.');
+        }
+      });
+    });
+
+    // ---------------- Sessions ----------------
+    document.getElementById('logoutBtn').addEventListener('click', function () {
+      auth.logout();
+    });
+
+    // ---------------- Init ----------------
+    (function init() {
+      var u = currentUser();
+      document.getElementById('photoName').textContent = u.name || 'User';
+      document.getElementById('photoEmail').textContent = u.email || '';
+      refreshPhotoUI();
+      fillProfileForm();
+      fillSessionInfo();
+      loadKycStatus();
+      initThemeChoice();
+      loadNotifPrefs();
+    })();
+  </script>
+</body>
+</html>

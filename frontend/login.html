@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign In â€” BrightVale Finance</title>
+  <link rel="icon" type="image/png" href="assets/img/favicon.png">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .auth-container {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background:
+        radial-gradient(600px 300px at 85% 10%, rgba(245, 179, 1, .12), transparent 60%),
+        radial-gradient(700px 400px at 10% 90%, rgba(76, 29, 149, .12), transparent 60%),
+        var(--bg);
+      padding: 2rem;
+      transition: background-color .25s ease;
+    }
+
+    .auth-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: var(--shadow-lg);
+      width: 100%;
+      max-width: 430px;
+      padding: 2.5rem;
+    }
+
+    .auth-header { text-align: center; margin-bottom: 1.75rem; }
+    .auth-logo { display: inline-flex; align-items: center; gap: 0.75rem; margin-bottom: 1.25rem; text-decoration: none; }
+    .auth-logo-text { font-family: var(--font-display); font-size: 1.6rem; font-weight: 800; color: var(--text); }
+    .auth-title { font-size: 1.4rem; font-weight: 700; color: var(--text); margin-bottom: 0.35rem; }
+    .auth-subtitle { color: var(--text-2); font-size: 0.875rem; }
+
+    .auth-tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; }
+    .auth-tab {
+      flex: 1; padding: 0.875rem; text-align: center; cursor: pointer;
+      border-bottom: 2px solid transparent; font-weight: 500; color: var(--text-2);
+      transition: all 0.2s ease;
+    }
+    .auth-tab:hover { color: var(--primary); }
+    .auth-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+    .auth-form { display: none; }
+    .auth-form.active { display: block; }
+
+    .form-group { margin-bottom: 1.1rem; }
+    .form-label { display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.875rem; color: var(--text); }
+    .form-control {
+      width: 100%; padding: 0.875rem 1rem; border: 1px solid var(--border);
+      border-radius: 10px; font-size: 0.875rem; background: var(--surface);
+      color: var(--text); transition: all 0.2s ease;
+    }
+    .form-control:focus {
+      outline: none; border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-soft);
+    }
+    .form-control::placeholder { color: var(--text-3); }
+
+    .password-field { position: relative; }
+    .password-field .form-control { padding-right: 3rem; }
+    .password-toggle {
+      position: absolute; right: 1rem; top: 50%; transform: translateY(-50%);
+      background: none; border: none; color: var(--text-3); cursor: pointer;
+      font-size: 1rem; padding: 0.25rem; transition: color 0.2s ease;
+    }
+    .password-toggle:hover { color: var(--primary); }
+
+    .btn-block {
+      width: 100%; padding: 0.875rem; border-radius: 10px; font-weight: 600;
+      cursor: pointer; transition: all 0.2s ease; border: none;
+      background: var(--primary); color: var(--primary-contrast);
+      font-size: 0.9375rem; display: inline-flex; align-items: center; justify-content: center;
+    }
+    .btn-block:hover { background: var(--primary-2); }
+    .btn-block:disabled { opacity: 0.7; cursor: not-allowed; }
+
+    .auth-footer { text-align: center; margin-top: 1.4rem; padding-top: 1.3rem; border-top: 1px solid var(--border-soft); }
+    .auth-footer p { color: var(--text-2); font-size: 0.875rem; }
+    .auth-footer a { color: var(--primary); text-decoration: none; font-weight: 500; }
+    .auth-footer a:hover { text-decoration: underline; }
+    .auth-legal { text-align: center; margin-top: 0.75rem; font-size: 0.78rem; color: var(--text-3); }
+    .auth-legal a { color: var(--primary); }
+
+    .form-error {
+      display: none; background: var(--danger-soft); color: var(--danger);
+      border-radius: 8px; padding: 0.65rem 0.9rem; font-size: 0.83rem; margin-bottom: 1rem;
+    }
+    .form-error.visible { display: block; }
+
+    .code-inputs { display: flex; gap: 8px; justify-content: center; margin-bottom: 1rem; }
+    .code-inputs .form-control { width: 44px; text-align: center; font-size: 1.1rem; font-weight: 700; padding: 0.75rem 0.5rem; }
+
+    .spinner {
+      display: inline-block; width: 18px; height: 18px;
+      border: 2px solid rgba(255, 255, 255, 0.35); border-top-color: #fff;
+      border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 0.5rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 480px) {
+      .auth-container { padding: 1rem; }
+      .auth-card { padding: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="auth-container">
+    <div class="auth-card">
+      <div class="auth-header">
+        <a class="auth-logo" href="index.html">
+          <span class="brand-logo-wrap"><img class="brand-logo brand-logo-light-img" style="height:46px" src="assets/img/brightvale-logo.png" alt="BrightVale Finance"><img class="brand-logo brand-logo-dark" style="height:46px" src="assets/img/brightvale-logo-light.png" alt="" aria-hidden="true"></span>
+        </a>
+        <h1 class="auth-title" id="authTitle">Welcome Back</h1>
+        <p class="auth-subtitle" id="authSubtitle">Your Bright Path to Finance. Sign in to access your account.</p>
+      </div>
+
+      <div class="auth-tabs" id="authTabs">
+        <div class="auth-tab active" data-tab="login" role="tab">Login</div>
+        <div class="auth-tab" data-tab="register" role="tab">Register</div>
+      </div>
+
+      <div class="form-error" id="formError"></div>
+
+      <!-- Login Form -->
+      <form id="loginForm" class="auth-form active" novalidate>
+        <div class="form-group">
+          <label class="form-label" for="loginEmail"><i class="fas fa-envelope" style="margin-right:0.4rem;color:var(--primary);"></i>Email Address</label>
+          <input type="email" id="loginEmail" name="email" class="form-control" placeholder="Enter your email" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="loginPassword"><i class="fas fa-lock" style="margin-right:0.4rem;color:var(--primary);"></i>Password</label>
+          <div class="password-field">
+            <input type="password" id="loginPassword" name="password" class="form-control" placeholder="Enter your password" required>
+            <button type="button" class="password-toggle" data-target="loginPassword" aria-label="Show or hide password"><i class="fas fa-eye"></i></button>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-bottom:1rem;">
+          <a href="#" id="forgotPasswordLink" style="font-size:0.85rem;color:var(--primary);text-decoration:none;">Forgot Password?</a>
+        </div>
+        <button type="submit" class="btn-block" id="loginBtn">
+          <i class="fas fa-sign-in-alt" style="margin-right:0.5rem;"></i>Sign In
+        </button>
+      </form>
+
+      <!-- Register Form -->
+      <form id="registerForm" class="auth-form" novalidate>
+        <div class="form-group">
+          <label class="form-label" for="regName"><i class="fas fa-user" style="margin-right:0.4rem;color:var(--primary);"></i>Full Name</label>
+          <input type="text" id="regName" name="name" class="form-control" placeholder="Enter your full name" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="regEmail"><i class="fas fa-envelope" style="margin-right:0.4rem;color:var(--primary);"></i>Email Address</label>
+          <input type="email" id="regEmail" name="email" class="form-control" placeholder="Enter your email" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="regPhone"><i class="fas fa-phone" style="margin-right:0.4rem;color:var(--primary);"></i>Phone Number</label>
+          <input type="tel" id="regPhone" name="phone" class="form-control" placeholder="Enter your phone number" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="registerPassword"><i class="fas fa-lock" style="margin-right:0.4rem;color:var(--primary);"></i>Password</label>
+          <div class="password-field">
+            <input type="password" id="registerPassword" name="password" class="form-control" placeholder="Create a password" required minlength="6">
+            <button type="button" class="password-toggle" data-target="registerPassword" aria-label="Show or hide password"><i class="fas fa-eye"></i></button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="regRef"><i class="fas fa-gift" style="margin-right:0.4rem;color:var(--primary);"></i>Referral Code (Optional)</label>
+          <input type="text" id="regRef" name="referralCode" class="form-control" placeholder="Enter referral code">
+        </div>
+        <div class="form-group">
+          <label style="display:flex;align-items:flex-start;gap:0.5rem;cursor:pointer;">
+            <input type="checkbox" name="agreement" required style="margin-top:0.25rem;">
+            <span style="font-size:0.83rem;color:var(--text-2);">I agree to the <a href="terms.html" style="color:var(--primary);">Terms of Service</a> and <a href="privacy.html" style="color:var(--primary);">Privacy Policy</a>, and confirm that I am at least 18 years old.</span>
+          </label>
+        </div>
+        <button type="submit" class="btn-block" id="registerBtn">
+          <i class="fas fa-user-plus" style="margin-right:0.5rem;"></i>Create Account
+        </button>
+      </form>
+
+      <!-- Forgot Password Form -->
+      <form id="forgotPasswordForm" class="auth-form" novalidate>
+        <p style="color:var(--text-2);font-size:0.875rem;margin-bottom:1rem;">Enter your email address and we'll send you a link to reset your password.</p>
+        <div class="form-group">
+          <label class="form-label" for="fpEmail"><i class="fas fa-envelope" style="margin-right:0.4rem;color:var(--primary);"></i>Email Address</label>
+          <input type="email" id="fpEmail" name="email" class="form-control" placeholder="Enter your email" required>
+        </div>
+        <button type="submit" class="btn-block" id="forgotPasswordBtn">
+          <i class="fas fa-paper-plane" style="margin-right:0.5rem;"></i>Send Reset Link
+        </button>
+        <p style="text-align:center;margin-top:1rem;"><a href="#" id="backToLoginLink" style="font-size:0.85rem;color:var(--primary);">Back to sign in</a></p>
+      </form>
+
+      <!-- Reset Password Form (arrives via ?reset=TOKEN) -->
+      <form id="resetPasswordForm" class="auth-form" novalidate>
+        <p style="color:var(--text-2);font-size:0.875rem;margin-bottom:1rem;">Choose a new password for your account.</p>
+        <div class="form-group">
+          <label class="form-label" for="newPassword"><i class="fas fa-lock" style="margin-right:0.4rem;color:var(--primary);"></i>New Password</label>
+          <div class="password-field">
+            <input type="password" id="newPassword" name="newPassword" class="form-control" placeholder="Enter a new password" required minlength="6">
+            <button type="button" class="password-toggle" data-target="newPassword" aria-label="Show or hide password"><i class="fas fa-eye"></i></button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="confirmNewPassword"><i class="fas fa-lock" style="margin-right:0.4rem;color:var(--primary);"></i>Confirm New Password</label>
+          <div class="password-field">
+            <input type="password" id="confirmNewPassword" name="confirmPassword" class="form-control" placeholder="Repeat the new password" required minlength="6">
+            <button type="button" class="password-toggle" data-target="confirmNewPassword" aria-label="Show or hide password"><i class="fas fa-eye"></i></button>
+          </div>
+        </div>
+        <button type="submit" class="btn-block" id="resetPasswordBtn">
+          <i class="fas fa-rotate" style="margin-right:0.5rem;"></i>Reset Password
+        </button>
+      </form>
+
+      <!-- Email Verification Form -->
+      <form id="verifyEmailForm" class="auth-form" novalidate>
+        <p style="color:var(--text-2);font-size:0.875rem;margin-bottom:1rem;">We sent a 6-digit verification code to your email. Enter it below to activate your account.</p>
+        <div class="code-inputs">
+          <input type="text" inputmode="numeric" maxlength="1" class="form-control" aria-label="Digit 1">
+          <input type="text" inputmode="numeric" maxlength="1" class="form-control" aria-label="Digit 2">
+          <input type="text" inputmode="numeric" maxlength="1" class="form-control" aria-label="Digit 3">
+          <input type="text" inputmode="numeric" maxlength="1" class="form-control" aria-label="Digit 4">
+          <input type="text" inputmode="numeric" maxlength="1" class="form-control" aria-label="Digit 5">
+          <input type="text" inputmode="numeric" maxlength="1" class="form-control" aria-label="Digit 6">
+        </div>
+        <button type="submit" class="btn-block" id="verifyEmailBtn">
+          <i class="fas fa-check" style="margin-right:0.5rem;"></i>Verify Email
+        </button>
+        <button type="button" class="btn-block btn-ghost" id="resendCodeBtn" style="margin-top:0.6rem;background:transparent;border:1.5px solid var(--border);color:var(--text-2);">
+          <i class="fas fa-rotate-right" style="margin-right:0.5rem;"></i><span id="resendCodeLabel">Resend Code</span>
+        </button>
+        <p class="text-small" id="resendHint" style="color:var(--text-3);margin-top:0.5rem;text-align:center;"></p>
+      </form>
+
+      <!-- Login OTP Form (shown when LOGIN_OTP is enabled) -->
+      <form id="loginOtpForm" class="auth-form" novalidate>
+        <p style="color:var(--text-2);font-size:0.875rem;margin-bottom:1rem;">A 6-digit sign-in code was sent to your email. Enter it below to complete sign-in.</p>
+        <div class="code-inputs">
+          <input type="text" inputmode="numeric" maxlength="1" class="form-control" aria-label="Digit 1">
+          <input type="text" inputmode="numeric" maxlength="1" class="form-control" aria-label="Digit 2">
+          <input type="text" inputmode="numeric" maxlength="1" class="form-control" aria-label="Digit 3">
+          <input type="text" inputmode="numeric" maxlength="1" class="form-control" aria-label="Digit 4">
+          <input type="text" inputmode="numeric" maxlength="1" class="form-control" aria-label="Digit 5">
+          <input type="text" inputmode="numeric" maxlength="1" class="form-control" aria-label="Digit 6">
+        </div>
+        <button type="submit" class="btn-block" id="loginOtpBtn">
+          <i class="fas fa-shield-halved" style="margin-right:0.5rem;"></i>Complete Sign In
+        </button>
+      </form>
+
+      <div class="auth-footer" id="authFooter">
+        <p>New to BrightVale? <a href="#" id="switchToRegister">Create an account</a></p>
+      </div>
+      <p class="auth-legal">Banking services provided subject to applicable terms. See <a href="terms.html">Terms</a> &amp; <a href="privacy.html">Privacy</a>.</p>
+    </div>
+  </div>
+
+  <script src="js/main.js"></script>
+  <script>
+    (function () {
+      // Redirect already-authenticated users (unless they came to reset a password).
+      // Unverified accounts (registered after verification was introduced) must
+      // complete email verification first â€” they are sent to the code step below.
+      var params = new URLSearchParams(window.location.search);
+      var needsVerify = false;
+      if (auth.isLoggedIn() && !params.get('reset')) {
+        var u = auth.getUser();
+        if (u && u.isEmailVerified !== false) {
+          window.location.href = (u.role === 'admin') ? 'admin/dashboard.html' : 'user/dashboard.html';
+          return;
+        }
+        needsVerify = true;
+      }
+
+      var errorEl = document.getElementById('formError');
+      function showError(msg) {
+        errorEl.textContent = msg;
+        errorEl.classList.add('visible');
+      }
+      function clearError() {
+        errorEl.textContent = '';
+        errorEl.classList.remove('visible');
+      }
+
+      function showForm(id) {
+        clearError();
+        document.querySelectorAll('.auth-form').forEach(function (f) { f.classList.remove('active'); });
+        var form = document.getElementById(id);
+        if (form) form.classList.add('active');
+        var tabs = document.getElementById('authTabs');
+        var footer = document.getElementById('authFooter');
+        var title = document.getElementById('authTitle');
+        var subtitle = document.getElementById('authSubtitle');
+        if (id === 'loginForm') {
+          tabs.style.display = 'flex'; footer.style.display = 'block';
+          title.textContent = 'Welcome Back';
+          subtitle.textContent = 'Your Bright Path to Finance. Sign in to access your account.';
+          setActiveTab('login');
+        } else if (id === 'registerForm') {
+          tabs.style.display = 'flex'; footer.style.display = 'block';
+          title.textContent = 'Create Your Account';
+          subtitle.textContent = 'Join BrightVale Finance in under a minute.';
+          setActiveTab('register');
+        } else {
+          tabs.style.display = 'none'; footer.style.display = 'none';
+          if (id === 'forgotPasswordForm') {
+            title.textContent = 'Reset Your Password';
+            subtitle.textContent = 'We\'ll email you a reset link.';
+          } else if (id === 'resetPasswordForm') {
+            title.textContent = 'Choose a New Password';
+            subtitle.textContent = 'Almost done â€” set a fresh password.';
+          } else if (id === 'verifyEmailForm') {
+            title.textContent = 'Verify Your Email';
+            subtitle.textContent = 'One last step to activate your account.';
+          }
+        }
+      }
+
+      function setActiveTab(tab) {
+        document.querySelectorAll('.auth-tab').forEach(function (t) {
+          t.classList.toggle('active', t.dataset.tab === tab);
+        });
+      }
+
+      // Tab clicks
+      document.querySelectorAll('.auth-tab').forEach(function (tab) {
+        tab.addEventListener('click', function () {
+          showForm(tab.dataset.tab + 'Form');
+        });
+      });
+
+      document.getElementById('switchToRegister').addEventListener('click', function (e) {
+        e.preventDefault(); showForm('registerForm');
+      });
+      document.getElementById('forgotPasswordLink').addEventListener('click', function (e) {
+        e.preventDefault(); showForm('forgotPasswordForm');
+      });
+      document.getElementById('backToLoginLink').addEventListener('click', function (e) {
+        e.preventDefault(); showForm('loginForm');
+      });
+
+      // Password visibility toggles
+      document.querySelectorAll('.password-toggle').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var input = document.getElementById(btn.dataset.target);
+          var icon = btn.querySelector('i');
+          var show = input.type === 'password';
+          input.type = show ? 'text' : 'password';
+          icon.classList.toggle('fa-eye', !show);
+          icon.classList.toggle('fa-eye-slash', show);
+        });
+      });
+
+      function setBusy(btn, busy, busyText, idleHtml) {
+        btn.disabled = busy;
+        btn.innerHTML = busy ? '<span class="spinner"></span>' + busyText : idleHtml;
+      }
+
+      // ---- Login ----
+      document.getElementById('loginForm').addEventListener('submit', async function (e) {
+        e.preventDefault(); clearError();
+        var btn = document.getElementById('loginBtn');
+        var idle = btn.innerHTML;
+        setBusy(btn, true, ' Signing in...');
+        try {
+          var res = await api.post('/auth/login', {
+            email: document.getElementById('loginEmail').value.trim(),
+            password: document.getElementById('loginPassword').value
+          });
+          if (res && res.success && res.data && res.data.token) {
+            auth.login(res.data.token, res.data.user);
+            toast.success('Login successful!');
+            setTimeout(function () {
+              window.location.href = (res.data.user.role === 'admin') ? 'admin/dashboard.html' : 'user/dashboard.html';
+            }, 500);
+          } else if (res && res.requiresOtp && res.data && res.data.otpToken) {
+            // Optional login OTP: keep the session pending until the code is verified
+            window.__pendingOtpToken = res.data.otpToken;
+            showForm('loginOtpForm');
+            toast.success('Sign-in code sent to your email.');
+          } else if (res && res.requiresVerification) {
+            // Backend wants email verification before proceeding
+            if (res.data && res.data.token) auth.login(res.data.token, res.data.user || {});
+            showForm('verifyEmailForm');
+          } else {
+            showError((res && res.message) || 'Login failed. Please check your credentials.');
+          }
+        } catch (err) {
+          showError('Network error. Please try again.');
+        } finally {
+          setBusy(btn, false, '', idle);
+        }
+      });
+
+      // ---- Register ----
+      document.getElementById('registerForm').addEventListener('submit', async function (e) {
+        e.preventDefault(); clearError();
+        var btn = document.getElementById('registerBtn');
+        var idle = btn.innerHTML;
+        setBusy(btn, true, ' Creating account...');
+        try {
+          var res = await api.post('/auth/register', {
+            name: document.getElementById('regName').value.trim(),
+            email: document.getElementById('regEmail').value.trim(),
+            phone: document.getElementById('regPhone').value.trim(),
+            password: document.getElementById('registerPassword').value,
+            referralCode: document.getElementById('regRef').value.trim()
+          });
+          if (res && res.success) {
+            // If the backend logs the user in immediately, store the session
+            if (res.data && res.data.token) auth.login(res.data.token, res.data.user || {});
+            // If email verification is required, show the code step
+            if (res.requiresVerification || (res.data && (res.data.requiresVerification || res.data.emailVerificationRequired))) {
+              showForm('verifyEmailForm');
+            } else {
+              toast.success('Account created successfully!');
+              setTimeout(function () { window.location.href = 'user/dashboard.html'; }, 600);
+            }
+          } else {
+            showError((res && res.message) || 'Registration failed. Please try again.');
+          }
+        } catch (err) {
+          showError('Network error. Please try again.');
+        } finally {
+          setBusy(btn, false, '', idle);
+        }
+      });
+
+      // ---- Forgot password ----
+      document.getElementById('forgotPasswordForm').addEventListener('submit', async function (e) {
+        e.preventDefault(); clearError();
+        var btn = document.getElementById('forgotPasswordBtn');
+        var idle = btn.innerHTML;
+        setBusy(btn, true, ' Sending...');
+        try {
+          var res = await api.post('/auth/forgot-password', {
+            email: document.getElementById('fpEmail').value.trim()
+          });
+          if (res && res.success) {
+            toast.success('If an account exists for that email, a reset link has been sent.');
+            showForm('loginForm');
+          } else {
+            showError((res && res.message) || 'Failed to send reset link.');
+          }
+        } catch (err) {
+          showError('Network error. Please try again.');
+        } finally {
+          setBusy(btn, false, '', idle);
+        }
+      });
+
+      // ---- Reset password (?reset=TOKEN) ----
+      var resetToken = params.get('reset');
+      if (resetToken) {
+        showForm('resetPasswordForm');
+        document.getElementById('resetPasswordForm').addEventListener('submit', async function (e) {
+          e.preventDefault(); clearError();
+          var pw = document.getElementById('newPassword').value;
+          var pw2 = document.getElementById('confirmNewPassword').value;
+          if (pw !== pw2) { showError('Passwords do not match.'); return; }
+          var btn = document.getElementById('resetPasswordBtn');
+          var idle = btn.innerHTML;
+          setBusy(btn, true, ' Resetting...');
+          try {
+            var res = await api.post('/auth/reset-password', { token: resetToken, newPassword: pw });
+            if (res && res.success) {
+              toast.success('Password updated. You can sign in now.');
+              // Strip the token from the URL
+              window.history.replaceState({}, document.title, window.location.pathname);
+              showForm('loginForm');
+            } else {
+              showError((res && res.message) || 'Reset failed. The link may have expired.');
+            }
+          } catch (err) {
+            showError('Network error. Please try again.');
+          } finally {
+            setBusy(btn, false, '', idle);
+          }
+        });
+      }
+
+      // ---- Email verification (6-digit code) ----
+      var codeInputs = document.querySelectorAll('#verifyEmailForm .code-inputs .form-control');
+      codeInputs.forEach(function (input, i) {
+        input.addEventListener('input', function () {
+          if (input.value && i < codeInputs.length - 1) codeInputs[i + 1].focus();
+        });
+        input.addEventListener('keydown', function (e) {
+          if (e.key === 'Backspace' && !input.value && i > 0) codeInputs[i - 1].focus();
+        });
+      });
+      document.getElementById('verifyEmailForm').addEventListener('submit', async function (e) {
+        e.preventDefault(); clearError();
+        var code = Array.from(codeInputs).map(function (i) { return i.value; }).join('');
+        if (code.length !== 6) { showError('Please enter the full 6-digit code.'); return; }
+        var btn = document.getElementById('verifyEmailBtn');
+        var idle = btn.innerHTML;
+        setBusy(btn, true, ' Verifying...');
+        try {
+          var res = await api.post('/auth/verify-email', { code: code });
+          if (res && res.success) {
+            toast.success('Email verified!');
+            if (res.data && res.data.token) auth.login(res.data.token, res.data.user || res.data);
+            setTimeout(function () { window.location.href = 'user/dashboard.html'; }, 600);
+          } else {
+            showError((res && res.message) || 'Verification failed. Check the code and try again.');
+          }
+        } catch (err) {
+          showError('Network error. Please try again.');
+        } finally {
+          setBusy(btn, false, '', idle);
+        }
+      });
+
+      // ---- Login OTP (6-digit code) ----
+      var otpInputs = document.querySelectorAll('#loginOtpForm .code-inputs .form-control');
+      otpInputs.forEach(function (input, i) {
+        input.addEventListener('input', function () {
+          if (input.value && i < otpInputs.length - 1) otpInputs[i + 1].focus();
+        });
+        input.addEventListener('keydown', function (e) {
+          if (e.key === 'Backspace' && !input.value && i > 0) otpInputs[i - 1].focus();
+        });
+      });
+      document.getElementById('loginOtpForm').addEventListener('submit', async function (e) {
+        e.preventDefault(); clearError();
+        var code = Array.from(otpInputs).map(function (i) { return i.value; }).join('');
+        if (code.length !== 6) { showError('Please enter the full 6-digit code.'); return; }
+        if (!window.__pendingOtpToken) { showError('Sign-in session expired. Please log in again.'); showForm('loginForm'); return; }
+        var btn = document.getElementById('loginOtpBtn');
+        var idle = btn.innerHTML;
+        setBusy(btn, true, ' Verifying...');
+        try {
+          var res = await api.post('/auth/verify-login-otp', { otpToken: window.__pendingOtpToken, code: code });
+          if (res && res.success && res.data && res.data.token) {
+            window.__pendingOtpToken = null;
+            auth.login(res.data.token, res.data.user);
+            toast.success('Login successful!');
+            setTimeout(function () {
+              window.location.href = (res.data.user.role === 'admin') ? 'admin/dashboard.html' : 'user/dashboard.html';
+            }, 500);
+          } else {
+            showError((res && res.message) || 'Verification failed. Check the code and try again.');
+          }
+        } catch (err) {
+          showError('Network error. Please try again.');
+        } finally {
+          setBusy(btn, false, '', idle);
+        }
+      });
+
+      // ---- Resend verification code (60s client cooldown; server limits 3/15min) ----
+      var resendCooldown = 0;
+      var resendBtn = document.getElementById('resendCodeBtn');
+      var resendLabel = document.getElementById('resendCodeLabel');
+      var resendHint = document.getElementById('resendHint');
+      function tickResendCooldown() {
+        if (resendCooldown <= 0) {
+          resendBtn.disabled = false;
+          resendLabel.textContent = 'Resend Code';
+          return;
+        }
+        resendBtn.disabled = true;
+        resendLabel.textContent = 'Resend Code (' + resendCooldown + 's)';
+        resendCooldown--;
+        setTimeout(tickResendCooldown, 1000);
+      }
+      resendBtn.addEventListener('click', async function () {
+        clearError();
+        resendBtn.disabled = true;
+        resendLabel.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+        try {
+          var res = await api.post('/auth/resend-verification', {});
+          if (res && res.success) {
+            resendHint.textContent = 'A new code was sent to your email. The previous code is no longer valid.';
+            resendHint.style.color = 'var(--success)';
+            resendCooldown = 60;
+            tickResendCooldown();
+          } else {
+            resendHint.textContent = (res && res.message) || 'Could not resend the code. Try again shortly.';
+            resendHint.style.color = 'var(--danger)';
+            resendBtn.disabled = false;
+            resendLabel.textContent = 'Resend Code';
+          }
+        } catch (err) {
+          resendHint.textContent = 'Network error. Please try again.';
+          resendHint.style.color = 'var(--danger)';
+          resendBtn.disabled = false;
+          resendLabel.textContent = 'Resend Code';
+        }
+      });
+
+      // ---- Hash / query handling on load ----
+      if (resetToken) {
+        // already handled above
+      } else if (needsVerify || window.location.hash === '#verify') {
+        showForm('verifyEmailForm');
+        if (!auth.isLoggedIn()) {
+          showError('Please sign in first — your email needs verification.');
+          showForm('loginForm');
+        }
+      } else if (params.get('ref')) {
+        document.getElementById('regRef').value = params.get('ref');
+        showForm('registerForm');
+      } else if (window.location.hash === '#register') {
+        showForm('registerForm');
+      }
+    })();
+  </script>
+</body>
+</html>

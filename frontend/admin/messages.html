@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Messages - BrightVale Finance Admin</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script>window.PAGE_CONFIG = { role: 'admin', active: 'messages', title: 'Messages' };</script>
+  <script src="../js/main.js"></script>
+  <style>
+    .msg-layout { display: grid; grid-template-columns: 340px 1fr; gap: 20px; align-items: start; }
+    .conv-item { display: flex; gap: 12px; align-items: center; padding: 12px; border-radius: var(--radius-sm); cursor: pointer; transition: background-color .15s ease; }
+    .conv-item:hover { background: var(--surface-2); }
+    .conv-item.active { background: var(--primary-soft); }
+    .conv-item .conv-meta { min-width: 0; flex: 1; }
+    .conv-item .conv-name { font-weight: 600; font-size: 14px; color: var(--text); }
+    .conv-item .conv-preview { font-size: 13px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .thread-scroll { max-height: 460px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 4px 2px; }
+    .bubble { max-width: 75%; padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+    .bubble.user { align-self: flex-start; background: var(--surface-2); color: var(--text); border-bottom-left-radius: 4px; }
+    .bubble.admin { align-self: flex-end; background: var(--gradient); color: #fff; border-bottom-right-radius: 4px; }
+    .bubble .bubble-time { display: block; font-size: 11px; opacity: .7; margin-top: 4px; }
+    @media (max-width: 900px) { .msg-layout { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <main class="main-content" id="main">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Support Messages</h1>
+        <p class="page-subtitle">Reply to user conversations. The list refreshes automatically.</p>
+      </div>
+    </div>
+
+    <div class="msg-layout">
+      <div>
+        <div class="card" style="padding: 12px;">
+          <div class="card-header" style="padding: 4px 6px;">
+            <div class="card-title">Conversations</div>
+          </div>
+          <div id="convList"></div>
+        </div>
+
+        <div class="card mt-16" style="padding: 12px;">
+          <div class="card-header" style="padding: 4px 6px;">
+            <div class="card-title"><i class="fas fa-pen-to-square"></i> Message a User</div>
+          </div>
+          <div class="form-group">
+            <select class="select" id="newMsgUser"><option value="">Loading users...</option></select>
+          </div>
+          <div class="form-group">
+            <input type="text" class="input" id="newMsgText" placeholder="Type a message..." onkeydown="if(event.key==='Enter')sendNewMessage()">
+          </div>
+          <button class="btn btn-primary btn-block btn-sm" id="newMsgBtn" onclick="sendNewMessage()"><i class="fas fa-paper-plane"></i> Send Message</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title" id="threadTitle">Select a conversation</div>
+        </div>
+        <div class="thread-scroll" id="threadBody">
+          <div class="empty-state">
+            <div class="empty-icon"><i class="fas fa-comments"></i></div>
+            <div class="empty-title">No conversation selected</div>
+            <div class="empty-hint">Choose a conversation on the left to view messages and reply.</div>
+          </div>
+        </div>
+        <div class="flex gap-8 mt-16">
+          <input type="text" class="input" id="replyInput" placeholder="Type a reply..." disabled>
+          <button class="btn btn-primary" id="replyBtn" disabled><i class="fas fa-paper-plane"></i> Send</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    if (!auth.requireAdmin()) throw new Error('Admin access required');
+
+    const esc = utils.escapeHtml;
+    let activeUserId = null;
+    let poller = null;
+
+    async function loadConversations() {
+      try {
+        const res = await api.get('/messages/conversations/all');
+        if (!res.success) return;
+        const convs = res.data || [];
+        const list = document.getElementById('convList');
+        if (!convs.length) {
+          list.innerHTML = `<div class="empty-state" style="padding: 32px 16px;">
+            <div class="empty-icon"><i class="fas fa-inbox"></i></div>
+            <div class="empty-title">No conversations</div>
+            <div class="empty-hint">When users message support, conversations appear here.</div>
+          </div>`;
+          return;
+        }
+        list.innerHTML = convs.map(c => {
+          const u = c.user || {};
+          return `
+            <div class="conv-item ${activeUserId === String(c._id) ? 'active' : ''}" onclick="openThread('${c._id}')">
+              <div class="avatar">${esc(utils.getInitials(u.name))}</div>
+              <div class="conv-meta">
+                <div class="flex-between">
+                  <span class="conv-name">${esc(u.name || 'User')}</span>
+                  <span class="text-small text-muted">${utils.timeAgo(c.lastMessageAt)}</span>
+                </div>
+                <div class="conv-preview">${esc(c.lastMessage || '')}</div>
+                <div class="text-small text-muted">${esc(u.email || '')}</div>
+              </div>
+              ${c.unreadCount > 0 ? `<span class="badge badge-danger">${c.unreadCount}</span>` : ''}
+            </div>`;
+        }).join('');
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    async function markThreadRead(userId) {
+      try {
+        await api.put('/messages/' + userId + '/read');
+        if (window.messageNotifier) messageNotifier.checkMessages();
+      } catch (e) { /* non-critical */ }
+    }
+
+    async function openThread(userId) {
+      activeUserId = userId;
+      document.getElementById('replyInput').disabled = false;
+      document.getElementById('replyBtn').disabled = false;
+      await Promise.all([loadThread(), markThreadRead(userId)]);
+      loadConversations();
+    }
+
+    async function loadThread(silent) {
+      if (!activeUserId) return;
+      try {
+        const res = await api.get(`/messages/${activeUserId}?limit=100`);
+        if (!res.success) {
+          if (!silent) toast.error(res.message || 'Failed to load messages');
+          return;
+        }
+        const messages = res.data || [];
+        if (!silent) {
+          const first = messages.find(m => m.senderId && m.senderId.name);
+          document.getElementById('threadTitle').textContent =
+            first ? `Conversation with ${first.senderId.name}` : 'Conversation';
+        }
+        const body = document.getElementById('threadBody');
+        const nearBottom = body.scrollHeight - body.scrollTop - body.clientHeight < 60;
+        body.innerHTML = messages.length
+          ? messages.map(m => `
+              <div class="bubble ${m.sender === 'admin' ? 'admin' : 'user'}">
+                ${esc(m.message)}
+                <span class="bubble-time">${utils.formatDateTime(m.createdAt)}</span>
+              </div>`).join('')
+          : `<div class="empty-state"><div class="empty-title">No messages yet</div></div>`;
+        if (nearBottom) body.scrollTop = body.scrollHeight;
+      } catch (error) {
+        if (!silent) console.error(error);
+      }
+    }
+
+    async function sendReply() {
+      const input = document.getElementById('replyInput');
+      const message = input.value.trim();
+      if (!message || !activeUserId) return;
+      const btn = document.getElementById('replyBtn');
+      btn.disabled = true;
+      try {
+        const res = await api.post('/messages', { userId: activeUserId, message });
+        if (res.success) {
+          input.value = '';
+          await Promise.all([loadThread(), loadConversations()]);
+        } else {
+          toast.error(res.message || 'Failed to send');
+        }
+      } catch (error) {
+        console.error(error);
+        toast.error('Failed to send');
+      } finally {
+        btn.disabled = false;
+        input.focus();
+      }
+    }
+
+    async function loadUsersForMessage() {
+      const sel = document.getElementById('newMsgUser');
+      try {
+        const res = await api.get('/admin/users?limit=1000');
+        if (res && res.success) {
+          sel.innerHTML = '<option value="">Select a user...</option>' +
+            (res.data || []).map(u => `<option value="${u._id}">${esc(u.name)} (${esc(u.email)})</option>`).join('');
+        } else {
+          sel.innerHTML = '<option value="">Failed to load users</option>';
+        }
+      } catch (e) {
+        console.error(e);
+        sel.innerHTML = '<option value="">Failed to load users</option>';
+      }
+    }
+
+    window.sendNewMessage = async function () {
+      const userId = document.getElementById('newMsgUser').value;
+      const input = document.getElementById('newMsgText');
+      const message = input.value.trim();
+      if (!userId) { toast.error('Select a user first'); return; }
+      if (!message) return;
+      const btn = document.getElementById('newMsgBtn');
+      btn.disabled = true;
+      try {
+        const res = await api.post('/messages', { userId, message });
+        if (res && res.success) {
+          input.value = '';
+          toast.success('Message sent');
+          await loadConversations();
+          openThread(userId);
+        } else {
+          toast.error((res && res.message) || 'Failed to send');
+        }
+      } catch (e) {
+        console.error(e);
+        toast.error('Failed to send');
+      } finally {
+        btn.disabled = false;
+      }
+    };
+
+    document.getElementById('replyBtn').addEventListener('click', sendReply);
+    document.getElementById('replyInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') sendReply();
+    });
+
+    loadUsersForMessage();
+    loadConversations();
+
+    // Live chat: refresh the conversation list and the open thread; messages
+    // in the open thread are marked read so badges/popups stay cleared.
+    async function livePoll() {
+      await loadConversations();
+      if (activeUserId) {
+        await loadThread(true);
+        const open = document.querySelector('.conv-item.active');
+        if (open) {
+          const hadUnread = open.querySelector('.badge-danger');
+          if (hadUnread) markThreadRead(activeUserId);
+        }
+      }
+    }
+    poller = setInterval(livePoll, 4000);
+  </script>
+</body>
+</html>

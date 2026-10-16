@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Crypto - BrightVale Finance</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script>window.PAGE_CONFIG = { role: 'user', active: 'crypto', title: 'Crypto' };</script>
+  <script src="../js/main.js"></script>
+  <style>
+    .crypto-grid { display: grid; grid-template-columns: 1.25fr .75fr; gap: 20px; align-items: start; }
+    .price-up { color: var(--success, #16A34A); }
+    .price-down { color: var(--danger, #DC2626); }
+    .wallet-box { background: var(--surface-2); border: 1px dashed var(--border); border-radius: var(--radius-sm); padding: 14px 16px; margin-bottom: 12px; }
+    .wallet-box code { font-size: 12.5px; color: var(--text); word-break: break-all; }
+    .wallet-warning { font-size: 11px; color: var(--warning, #D97706); margin-top: 6px; }
+    .trade-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 16px; }
+    .disabled-btn { position: relative; }
+    .price-cell { font-variant-numeric: tabular-nums; }
+    @media (max-width: 992px) { .crypto-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <main class="main-content" id="main">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Crypto</h1>
+        <p class="page-subtitle">Live market prices and the deposit wallets configured for your account.</p>
+      </div>
+      <button class="btn btn-ghost" id="refreshBtn"><i class="fas fa-rotate"></i> Refresh</button>
+    </div>
+
+    <div class="crypto-grid">
+      <div class="card reveal">
+        <div class="card-header">
+          <div class="card-title"><i class="fab fa-bitcoin"></i> Live Prices</div>
+          <span class="text-small text-muted" id="updatedAt"></span>
+        </div>
+        <div id="pricesWrap"><div class="loading"><div class="spinner"></div></div></div>
+        <div class="trade-row">
+          <button class="btn btn-primary disabled-btn" disabled title="Trading becomes available once your account is fully verified."><i class="fas fa-cart-shopping"></i> Buy</button>
+          <button class="btn btn-ghost disabled-btn" disabled title="Trading becomes available once your account is fully verified."><i class="fas fa-tag"></i> Sell</button>
+          <button class="btn btn-ghost disabled-btn" disabled title="Trading becomes available once your account is fully verified."><i class="fas fa-paper-plane"></i> Send</button>
+        </div>
+        <p class="form-hint mt-8">Trading becomes available once your account is fully verified.</p>
+      </div>
+
+      <div class="card reveal">
+        <div class="card-header">
+          <div class="card-title"><i class="fas fa-wallet"></i> Deposit Wallets</div>
+        </div>
+        <div id="walletsWrap"><div class="loading"><div class="spinner"></div></div></div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    if (!auth.isLoggedIn()) {
+      window.location.href = '../login.html';
+    }
+
+    function fmtPrice(p) {
+      const v = Number(p) || 0;
+      if (v >= 1000) return '$' + v.toLocaleString('en-US', { maximumFractionDigits: 0 });
+      if (v >= 1) return '$' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      return '$' + v.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 6 });
+    }
+
+    function renderPrices(coins, source) {
+      const wrap = document.getElementById('pricesWrap');
+      if (!coins.length) {
+        wrap.innerHTML = '<div class="empty-state" style="padding:20px 0;"><div class="empty-icon"><i class="fas fa-coins"></i></div><div class="empty-hint">No price data available right now.</div></div>';
+        return;
+      }
+      wrap.innerHTML =
+        '<div class="table-wrap"><table class="data-table">' +
+        '<thead><tr><th>Asset</th><th>Price</th><th>24h Change</th></tr></thead><tbody>' +
+        coins.map(function (c) {
+          const up = Number(c.change24h) >= 0;
+          return '<tr>' +
+            '<td><b>' + utils.escapeHtml(c.symbol || '') + '</b> <span class="text-small text-muted">' + utils.escapeHtml(c.name || '') + '</span></td>' +
+            '<td class="price-cell">' + fmtPrice(c.price) + '</td>' +
+            '<td class="price-cell ' + (up ? 'price-up' : 'price-down') + '"><i class="fas fa-caret-' + (up ? 'up' : 'down') + '"></i> ' + (up ? '+' : '') + Number(c.change24h || 0).toFixed(2) + '%</td>' +
+          '</tr>';
+        }).join('') + '</tbody></table></div>';
+      const src = source ? ' &middot; ' + utils.escapeHtml(source) : '';
+      document.getElementById('updatedAt').innerHTML = 'Last updated: ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + src;
+    }
+
+    async function loadPrices() {
+      const wrap = document.getElementById('pricesWrap');
+      wrap.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+      try {
+        const res = await api.get('/crypto/prices');
+        if (!res || !res.success) {
+          wrap.innerHTML = '<div class="empty-state" style="padding:20px 0;"><div class="empty-icon"><i class="fas fa-triangle-exclamation"></i></div><div class="empty-title">Could not load prices</div><div class="empty-hint">' + utils.escapeHtml((res && res.message) || 'Please try again.') + '</div><button class="btn btn-primary btn-sm mt-8" onclick="loadPrices()">Retry</button></div>';
+          return;
+        }
+        renderPrices(res.data.coins || [], (res.data.coins && res.data.coins[0] && res.data.coins[0].source) || '');
+      } catch (e) {
+        wrap.innerHTML = '<div class="empty-state" style="padding:20px 0;"><div class="empty-icon"><i class="fas fa-triangle-exclamation"></i></div><div class="empty-title">Could not load prices</div><div class="empty-hint">Network error. Please try again.</div><button class="btn btn-primary btn-sm mt-8" onclick="loadPrices()">Retry</button></div>';
+      }
+    }
+
+    window.copyWallet = function (btn, address) {
+      const done = function () { toast.success('Address copied'); };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(address).then(done).catch(function () {
+          const ta = document.createElement('textarea');
+          ta.value = address;
+          document.body.appendChild(ta);
+          ta.select();
+          try { document.execCommand('copy'); done(); } catch (e) { toast.error('Copy failed'); }
+          document.body.removeChild(ta);
+        });
+      }
+    };
+
+    async function loadWallets() {
+      const wrap = document.getElementById('walletsWrap');
+      try {
+        const res = await api.get('/crypto/wallets');
+        if (!res || !res.success) { wrap.innerHTML = '<div class="text-small text-muted">Could not load wallets.</div>'; return; }
+        const list = (res.data && res.data.wallets) || [];
+        if (!list.length) {
+          wrap.innerHTML = '<div class="empty-state" style="padding:20px 0;"><div class="empty-icon"><i class="fas fa-wallet"></i></div><div class="empty-hint">No deposit wallets configured yet. Contact support.</div></div>';
+          return;
+        }
+        wrap.innerHTML = list.map(function (w, i) {
+          return '<div class="wallet-box">' +
+            '<div class="flex gap-8" style="justify-content:space-between;align-items:center;">' +
+              '<b>' + utils.escapeHtml(w.coin || '') + ' <span class="text-small text-muted">' + utils.escapeHtml(w.network || '') + '</span></b>' +
+              '<button class="btn btn-ghost btn-xs" onclick="copyWallet(this, \'' + utils.escapeHtml(w.address || '') + '\')"><i class="fas fa-copy"></i> Copy</button>' +
+            '</div>' +
+            '<code style="display:block;margin-top:6px;">' + utils.escapeHtml(w.address || '') + '</code>' +
+            '<div class="wallet-warning"><i class="fas fa-triangle-exclamation"></i> Send only ' + utils.escapeHtml(w.coin || '') + ' on ' + utils.escapeHtml(w.network || '') + ' to this address.</div>' +
+          '</div>';
+        }).join('');
+      } catch (e) {
+        wrap.innerHTML = '<div class="text-small text-muted">Could not load wallets.</div>';
+      }
+    }
+
+    document.getElementById('refreshBtn').addEventListener('click', loadPrices);
+    loadPrices();
+    loadWallets();
+  </script>
+</body>
+</html>

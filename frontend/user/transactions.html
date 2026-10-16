@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transactions - BrightVale Finance</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script>window.PAGE_CONFIG = { role: 'user', active: 'transactions', title: 'Transactions' };</script>
+  <script src="../js/main.js"></script>
+</head>
+<body>
+  <main class="main-content" id="main">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Transactions</h1>
+        <p class="page-subtitle">Your complete transaction history.</p>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="exportBtn"><i class="fas fa-file-csv"></i> Export CSV</button>
+    </div>
+
+    <div class="card mb-16">
+      <div class="filter-bar">
+        <div class="search-input" style="flex:1;min-width:180px;">
+          <i class="fas fa-magnifying-glass"></i>
+          <input type="text" class="input" id="searchInput" placeholder="Search description...">
+        </div>
+        <select class="select" id="typeSelect" style="width:auto;">
+          <option value="">All types</option>
+          <option value="deposit">Deposit</option>
+          <option value="withdraw">Withdrawal</option>
+          <option value="invest">Investment</option>
+          <option value="investment_return">Investment Return</option>
+          <option value="loan">Loan</option>
+          <option value="loan_repayment">Loan Repayment</option>
+          <option value="referral_bonus">Referral Bonus</option>
+          <option value="transfer">Transfer</option>
+        </select>
+        <select class="select" id="statusSelect" style="width:auto;">
+          <option value="">All statuses</option>
+          <option value="completed">Completed</option>
+          <option value="approved">Approved</option>
+          <option value="pending">Pending</option>
+          <option value="processing">Processing</option>
+          <option value="active">Active</option>
+          <option value="declined">Declined</option>
+          <option value="failed">Failed</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+        <input type="date" class="input" id="dateFrom" style="width:auto;" title="From date">
+        <input type="date" class="input" id="dateTo" style="width:auto;" title="To date">
+      </div>
+    </div>
+
+    <div id="tableWrap"><div class="loading"><div class="spinner"></div></div></div>
+    <div class="table-footer mt-12">
+      <span id="tableInfo"></span>
+      <div id="paginationWrap"></div>
+    </div>
+  </main>
+
+  <script>
+    const TYPE_LABELS = {
+      deposit: 'Deposit', withdraw: 'Withdrawal', invest: 'Investment',
+      investment_return: 'Investment Return', loan: 'Loan', loan_repayment: 'Loan Repayment',
+      referral_bonus: 'Referral Bonus', transfer: 'Transfer'
+    };
+    const TYPE_ICONS = {
+      deposit: 'fa-arrow-down', withdraw: 'fa-arrow-up', invest: 'fa-chart-line',
+      investment_return: 'fa-rotate-left', loan: 'fa-hand-holding-dollar',
+      loan_repayment: 'fa-money-bill-wave', referral_bonus: 'fa-user-plus',
+      transfer: 'fa-arrow-right-arrow-left'
+    };
+    const CREDIT_TYPES = ['deposit', 'investment_return', 'referral_bonus'];
+    const STATUS_BADGE = {
+      completed: 'badge-success', approved: 'badge-success', active: 'badge-info',
+      pending: 'badge-warning', processing: 'badge-info',
+      declined: 'badge-danger', failed: 'badge-danger', cancelled: 'badge-danger'
+    };
+
+    let currentPage = 1;
+    let currentData = [];
+    let paginationMeta = { total: 0, pages: 0 };
+
+    function typeLabel(type) {
+      return TYPE_LABELS[type] || (type ? type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : 'Transaction');
+    }
+
+    function typeIcon(type) {
+      return TYPE_ICONS[type] || 'fa-arrow-right-arrow-left';
+    }
+
+    function statusBadge(status) {
+      return `<span class="badge ${STATUS_BADGE[status] || 'badge-muted'}">${utils.escapeHtml(status || 'unknown')}</span>`;
+    }
+
+    function getFilters() {
+      return {
+        type: document.getElementById('typeSelect').value,
+        status: document.getElementById('statusSelect').value,
+        search: document.getElementById('searchInput').value.trim().toLowerCase(),
+        from: document.getElementById('dateFrom').value,
+        to: document.getElementById('dateTo').value
+      };
+    }
+
+    function clientFilter(list, f) {
+      return list.filter(t => {
+        if (f.search) {
+          const desc = (t.description || typeLabel(t.type) || '').toLowerCase();
+          if (!desc.includes(f.search)) return false;
+        }
+        const d = t.createdAt ? new Date(t.createdAt) : null;
+        if (f.from && d && d < new Date(f.from + 'T00:00:00')) return false;
+        if (f.to && d && d > new Date(f.to + 'T23:59:59.999')) return false;
+        return true;
+      });
+    }
+
+    function renderTable() {
+      const f = getFilters();
+      const rows = clientFilter(currentData, f);
+      const wrap = document.getElementById('tableWrap');
+
+      if (!rows.length) {
+        wrap.innerHTML = `
+          <div class="empty-state" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);">
+            <div class="empty-icon"><i class="fas fa-arrow-right-arrow-left"></i></div>
+            <div class="empty-title">No transactions found</div>
+            <div class="empty-hint">Try adjusting your filters, or make your first deposit to get started.</div>
+            <a href="deposit.html" class="btn btn-primary btn-sm mt-8">Deposit funds</a>
+          </div>`;
+      } else {
+        const body = rows.map(t => {
+          const credit = CREDIT_TYPES.includes(t.type);
+          const sign = credit ? '+' : '&minus;';
+          const color = credit ? 'up' : 'down';
+          const shortId = t._id ? String(t._id).slice(-6).toUpperCase() : 'N/A';
+          return `
+            <tr>
+              <td class="mono text-muted">#${shortId}</td>
+              <td><span class="flex gap-8" style="align-items:center;"><i class="fas ${typeIcon(t.type)}" style="color:var(--primary);width:16px;text-align:center;"></i>${utils.escapeHtml(typeLabel(t.type))}</span></td>
+              <td>${utils.escapeHtml(t.description || '&mdash;')}</td>
+              <td><span class="stat-change ${color}">${sign} ${utils.formatCurrency(t.amount)}</span></td>
+              <td>${utils.formatDateTime(t.createdAt)}</td>
+              <td>${statusBadge(t.status)}</td>
+            </tr>`;
+        }).join('');
+        wrap.innerHTML = `
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr><th>ID</th><th>Type</th><th>Description</th><th>Amount</th><th>Date</th><th>Status</th></tr>
+              </thead>
+              <tbody>${body}</tbody>
+            </table>
+          </div>`;
+      }
+
+      const info = document.getElementById('tableInfo');
+      if (paginationMeta.total) {
+        info.textContent = `Showing ${rows.length} of ${paginationMeta.total} transactions`;
+      } else {
+        info.textContent = rows.length ? `${rows.length} transaction(s)` : '';
+      }
+    }
+
+    async function loadPage(page) {
+      currentPage = page || 1;
+      const f = getFilters();
+      const params = new URLSearchParams({ page: currentPage, limit: 10 });
+      if (f.type) params.set('type', f.type);
+      if (f.status) params.set('status', f.status);
+      try {
+        const res = await api.get('/transactions?' + params.toString());
+        if (!res || !res.success) {
+          toast.error((res && res.message) || 'Failed to load transactions');
+          return;
+        }
+        currentData = res.data || [];
+        paginationMeta = res.pagination || { total: 0, pages: 0 };
+        renderTable();
+        pagination.render('paginationWrap', paginationMeta.currentPage || 1, paginationMeta.pages || 1, 'goToPage');
+      } catch (e) {
+        toast.error('Failed to load transactions');
+      }
+    }
+
+    window.goToPage = function(page) {
+      loadPage(page);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    function exportCsv() {
+      const f = getFilters();
+      const rows = clientFilter(currentData, f);
+      if (!rows.length) {
+        toast.warning('Nothing to export on this page');
+        return;
+      }
+      const header = 'ID,Type,Description,Amount,Date,Status';
+      const lines = rows.map(t => {
+        const credit = CREDIT_TYPES.includes(t.type);
+        const amount = (credit ? '' : '-') + (t.amount || 0);
+        const desc = String(t.description || '').replace(/"/g, '""');
+        return [
+          t._id || '',
+          typeLabel(t.type),
+          `"${desc}"`,
+          amount,
+          t.createdAt ? new Date(t.createdAt).toISOString() : '',
+          t.status || ''
+        ].join(',');
+      });
+      const blob = new Blob([header + '\n' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'brightvale-transactions-page-' + currentPage + '.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success('CSV downloaded');
+    }
+
+    document.getElementById('exportBtn').addEventListener('click', exportCsv);
+    ['searchInput'].forEach(id => {
+      document.getElementById(id).addEventListener('input', utils.debounce(renderTable, 250));
+    });
+    ['dateFrom', 'dateTo'].forEach(id => {
+      document.getElementById(id).addEventListener('change', renderTable);
+    });
+    ['typeSelect', 'statusSelect'].forEach(id => {
+      document.getElementById(id).addEventListener('change', () => loadPage(1));
+    });
+
+    loadPage(1);
+  </script>
+</body>
+</html>

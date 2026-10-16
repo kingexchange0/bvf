@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wallet Settings - BrightVale Finance</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script>window.PAGE_CONFIG = { role: 'user', active: 'settings', title: 'Wallet Settings' };</script>
+  <script src="../js/main.js"></script>
+  <style>
+    .ws-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+    .info-item { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; }
+    .info-item + .info-item { border-top: 1px dashed var(--border); }
+    .info-icon { width: 34px; height: 34px; border-radius: 10px; background: var(--primary-soft); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+    .info-item b { display: block; font-size: 13px; color: var(--text); }
+    .info-item span { font-size: 12px; color: var(--text-2); line-height: 1.5; }
+    .saved-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; color: #16A34A; background: rgba(22,163,74,.1); padding: 3px 10px; border-radius: 20px; }
+    .method-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .method-card { border: 2px solid var(--border); border-radius: var(--radius-sm); padding: 12px; text-align: center; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-2); background: var(--surface-2); }
+    .method-card.active { border-color: var(--primary); color: var(--primary); background: var(--primary-soft); }
+    .method-card i { display: block; font-size: 18px; margin-bottom: 6px; }
+    @media (max-width: 640px) { .method-row { grid-template-columns: 1fr; } }
+    @media (max-width: 992px) { .ws-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <main class="main-content" id="main">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Wallet Settings</h1>
+        <p class="page-subtitle">Manage your BTC wallet address and bank account details used for withdrawals.</p>
+      </div>
+    </div>
+
+    <div class="ws-grid mb-16">
+      <div class="card reveal">
+        <div class="card-header">
+          <div class="card-title"><i class="fab fa-bitcoin" style="color:#F7931A;"></i> BTC Wallet Address</div>
+          <span class="saved-chip" id="btcSavedChip" style="display:none;"><i class="fas fa-circle-check"></i> Saved</span>
+        </div>
+        <p class="text-small text-muted mb-16">Set your Bitcoin wallet address for withdrawals. Make sure this address is correct — BTC transfers cannot be reversed.</p>
+        <form id="btcForm">
+          <div class="form-group">
+            <label class="form-label">Your BTC Wallet Address</label>
+            <input type="text" class="input" id="btcAddress" placeholder="Enter your BTC wallet address" autocomplete="off">
+          </div>
+          <button type="submit" class="btn btn-primary btn-block" id="btcBtn"><i class="fas fa-floppy-disk"></i> Save BTC Address</button>
+        </form>
+      </div>
+
+      <div class="card reveal">
+        <div class="card-header">
+          <div class="card-title"><i class="fas fa-building-columns"></i> Bank Account Details</div>
+          <span class="saved-chip" id="bankSavedChip" style="display:none;"><i class="fas fa-circle-check"></i> Saved</span>
+        </div>
+        <p class="text-small text-muted mb-16">Set your bank account details for withdrawals. These are used when you choose bank transfer at withdrawal.</p>
+        <form id="bankForm">
+          <div class="form-group">
+            <label class="form-label">Account Name or Username</label>
+            <input type="text" class="input" id="accountName" placeholder="Enter account name or username" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Account Number</label>
+            <input type="text" class="input" id="accountNumber" placeholder="Enter account number" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Bank Name</label>
+            <input type="text" class="input" id="bankName" placeholder="Enter bank name" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label class="form-label">SWIFT Code (Optional)</label>
+            <input type="text" class="input" id="swiftCode" placeholder="Enter SWIFT code" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Routing Number (Optional)</label>
+            <input type="text" class="input" id="routingNumber" placeholder="Enter routing number" autocomplete="off">
+          </div>
+          <button type="submit" class="btn btn-primary btn-block" id="bankBtn"><i class="fas fa-floppy-disk"></i> Save Bank Details</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="card reveal">
+      <div class="card-title mb-8"><i class="fas fa-shield-halved"></i> Security Tips</div>
+      <div class="info-item"><div class="info-icon"><i class="fas fa-key"></i></div><div><b>Never share your wallet keys</b><span>BrightVale Finance staff will never ask for your private keys or seed phrase.</span></div></div>
+      <div class="info-item"><div class="info-icon"><i class="fas fa-circle-check"></i></div><div><b>Double-check addresses</b><span>Always verify your BTC address character by character before saving.</span></div></div>
+      <div class="info-item"><div class="info-icon"><i class="fas fa-lock"></i></div><div><b>Keep details up to date</b><span>Update your bank details promptly if your account changes to avoid payout delays.</span></div></div>
+    </div>
+  </main>
+
+  <script>
+    if (!auth.isLoggedIn()) {
+      window.location.href = '../login.html';
+    }
+
+    async function loadSettings() {
+      try {
+        const res = await api.get('/user/profile');
+        if (!res || !res.success || !res.data) return;
+        const u = res.data;
+        document.getElementById('btcAddress').value = u.btcWalletAddress || '';
+        if (u.btcWalletAddress) document.getElementById('btcSavedChip').style.display = '';
+        const b = u.bankDetails || {};
+        document.getElementById('accountName').value = b.accountName || '';
+        document.getElementById('accountNumber').value = b.accountNumber || '';
+        document.getElementById('bankName').value = b.bankName || '';
+        document.getElementById('swiftCode').value = b.swiftCode || '';
+        document.getElementById('routingNumber').value = b.routingNumber || '';
+        if (b.accountName || b.accountNumber || b.bankName) document.getElementById('bankSavedChip').style.display = '';
+      } catch (e) { /* leave fields empty */ }
+    }
+
+    document.getElementById('btcForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const addr = document.getElementById('btcAddress').value.trim();
+      if (!addr) { toast.error('Enter your BTC wallet address'); return; }
+      const btn = document.getElementById('btcBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+      try {
+        const res = await api.put('/user/update-profile', { btcWalletAddress: addr });
+        if (res && res.success) {
+          toast.success('BTC address saved');
+          document.getElementById('btcSavedChip').style.display = '';
+          if (res.data) auth.updateUser(res.data);
+        } else {
+          toast.error((res && res.message) || 'Could not save BTC address');
+        }
+      } catch (err) {
+        toast.error('Could not save BTC address. Please try again.');
+      }
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-floppy-disk"></i> Save BTC Address';
+    });
+
+    document.getElementById('bankForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const accountName = document.getElementById('accountName').value.trim();
+      const accountNumber = document.getElementById('accountNumber').value.trim();
+      const bankName = document.getElementById('bankName').value.trim();
+      if (!accountName || !accountNumber || !bankName) {
+        toast.error('Account name, account number and bank name are required');
+        return;
+      }
+      const bankDetails = {
+        accountName: accountName,
+        accountNumber: accountNumber,
+        bankName: bankName,
+        swiftCode: document.getElementById('swiftCode').value.trim(),
+        routingNumber: document.getElementById('routingNumber').value.trim()
+      };
+      const btn = document.getElementById('bankBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+      try {
+        const res = await api.put('/user/update-profile', { bankDetails: bankDetails });
+        if (res && res.success) {
+          toast.success('Bank details saved');
+          document.getElementById('bankSavedChip').style.display = '';
+          if (res.data) auth.updateUser(res.data);
+        } else {
+          toast.error((res && res.message) || 'Could not save bank details');
+        }
+      } catch (err) {
+        toast.error('Could not save bank details. Please try again.');
+      }
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-floppy-disk"></i> Save Bank Details';
+    });
+
+    loadSettings();
+  </script>
+</body>
+</html>

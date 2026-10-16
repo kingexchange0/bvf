@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - BrightVale Finance Admin</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script>window.PAGE_CONFIG = { role: 'admin', active: 'dashboard', title: 'Dashboard' };</script>
+  <script src="../js/main.js"></script>
+</head>
+<body>
+  <main class="main-content" id="main">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Dashboard</h1>
+        <p class="page-subtitle">Platform overview at a glance.</p>
+      </div>
+      <button class="btn btn-ghost" id="refreshBtn"><i class="fas fa-rotate"></i> Refresh</button>
+    </div>
+
+    <div class="stat-grid" id="mainStats"></div>
+
+    <div class="flex gap-8 mt-16" style="flex-wrap: wrap;" id="quickLinks">
+      <a class="chip" href="deposits.html?status=pending"><i class="fas fa-download"></i> Review deposits</a>
+      <a class="chip" href="withdrawals.html?status=pending"><i class="fas fa-upload"></i> Review withdrawals</a>
+      <a class="chip" href="kyc.html?status=pending"><i class="fas fa-id-card"></i> Review KYC</a>
+      <a class="chip" href="loans.html?status=pending"><i class="fas fa-hand-holding-dollar"></i> Review loans</a>
+      <a class="chip" href="cards.html"><i class="fas fa-credit-card"></i> Card applications</a>
+      <a class="chip" href="transfers.html"><i class="fas fa-arrow-right-arrow-left"></i> Transfers</a>
+      <a class="chip" href="messages.html"><i class="fas fa-comments"></i> Support messages</a>
+    </div>
+
+    <div class="card mt-24">
+      <div class="card-header">
+        <div class="card-title">Recent users</div>
+        <a class="btn btn-sm btn-ghost" href="users.html">View all</a>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>User</th><th>Balance</th><th>KYC</th><th>Joined</th></tr></thead>
+          <tbody id="recentUsersBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    if (!auth.requireAdmin()) throw new Error('Admin access required');
+
+    const esc = utils.escapeHtml;
+
+    const badgeClass = (s) => {
+      s = (s || '').toLowerCase();
+      if (['approved', 'completed', 'active', 'paid', 'verified'].includes(s)) return 'badge-success';
+      if (['pending', 'processing'].includes(s)) return 'badge-warning';
+      if (['declined', 'rejected', 'suspended', 'failed'].includes(s)) return 'badge-danger';
+      return 'badge-muted';
+    };
+    const badge = (s) => `<span class="badge ${badgeClass(s)}">${esc(s ? String(s).replace(/_/g, ' ') : 'N/A')}</span>`;
+
+    const statCard = (icon, label, value) => `
+      <div class="stat-card">
+        <div class="flex-between">
+          <span class="stat-icon"><i class="fas ${icon}"></i></span>
+        </div>
+        <div>
+          <div class="stat-label">${esc(label)}</div>
+          <div class="stat-value">${value}</div>
+        </div>
+      </div>`;
+
+    async function loadDashboard() {
+      loading.show('mainStats');
+      try {
+        const coreRes = await api.get('/admin/dashboard');
+        if (!coreRes.success) {
+          toast.error(coreRes.message || 'Failed to load dashboard');
+          return;
+        }
+        const s = coreRes.data.stats;
+        document.getElementById('mainStats').innerHTML =
+          statCard('fa-users', 'Total Users', Number(s.totalUsers).toLocaleString()) +
+          statCard('fa-user-plus', 'New Users Today', Number(s.newUsersToday).toLocaleString()) +
+          statCard('fa-download', 'Pending Deposits', Number(s.pendingDeposits).toLocaleString()) +
+          statCard('fa-upload', 'Pending Withdrawals', Number(s.pendingWithdrawals).toLocaleString()) +
+          statCard('fa-id-card', 'Pending KYC', Number(s.pendingKYC).toLocaleString()) +
+          statCard('fa-chart-line', 'Active Investments', Number(s.activeInvestments).toLocaleString());
+
+        const recentUsers = coreRes.data.recentUsers || [];
+        document.getElementById('recentUsersBody').innerHTML = recentUsers.length
+          ? recentUsers.map(u => `
+              <tr>
+                <td>
+                  <div class="flex gap-8" style="align-items:center;">
+                    <div class="avatar avatar-sm">${esc(utils.getInitials(u.name))}</div>
+                    <div>
+                      <div>${esc(u.name)}</div>
+                      <div class="text-small text-muted">${esc(u.email)}</div>
+                    </div>
+                  </div>
+                </td>
+                <td>${utils.formatCurrency(u.balanceUSD)}</td>
+                <td>${badge(u.kycStatus)}</td>
+                <td>${utils.formatDate(u.createdAt)}</td>
+              </tr>`).join('')
+          : `<tr><td colspan="4"><div class="empty-state"><div class="empty-icon"><i class="fas fa-users"></i></div><div class="empty-title">No users yet</div></div></td></tr>`;
+      } catch (error) {
+        console.error(error);
+        toast.error('Failed to load dashboard');
+      } finally {
+        loading.hide('mainStats');
+      }
+    }
+
+    document.getElementById('refreshBtn').addEventListener('click', loadDashboard);
+    loadDashboard();
+  </script>
+</body>
+</html>

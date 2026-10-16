@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Logs - BrightVale Finance Admin</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script>window.PAGE_CONFIG = { role: 'admin', active: 'logs', title: 'Admin Logs' };</script>
+  <script src="../js/main.js"></script>
+</head>
+<body>
+  <main class="main-content" id="main">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Admin Logs</h1>
+        <p class="page-subtitle">Audit trail of every administrative action.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr><th>Time</th><th>Admin</th><th>Action</th><th>Details</th><th>Target</th><th>IP</th></tr>
+          </thead>
+          <tbody id="logsBody"></tbody>
+        </table>
+      </div>
+      <div class="table-footer">
+        <span id="logsCount"></span>
+        <div id="logsPagination"></div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    if (!auth.requireAdmin()) throw new Error('Admin access required');
+
+    const esc = utils.escapeHtml;
+    const state = { page: 1, limit: 25 };
+
+    const badgeClass = (s) => {
+      s = (s || '').toLowerCase();
+      if (['approved', 'completed', 'active', 'paid', 'verified', 'available', 'sold'].includes(s)) return 'badge-success';
+      if (['pending', 'processing'].includes(s)) return 'badge-warning';
+      if (['declined', 'rejected', 'suspended', 'cancelled', 'canceled', 'failed', 'defaulted', 'delete'].includes(s)) return 'badge-danger';
+      if (['draft', 'unavailable', 'inactive', 'not_submitted'].includes(s)) return 'badge-muted';
+      if (s === 'featured') return 'badge-primary';
+      return 'badge-muted';
+    };
+
+    // Color-code the action verb itself (approve=success, reject/delete=danger, etc.)
+    const actionBadge = (action) => {
+      const a = (action || '').toUpperCase();
+      let cls = 'badge-muted';
+      if (/APPROVE|VERIFY|CREDIT|COMPLETE|PAY/.test(a)) cls = 'badge-success';
+      else if (/REJECT|DECLINE|DELETE|SUSPEND|DEBIT/.test(a)) cls = 'badge-danger';
+      else if (/PENDING|UPDATE|EDIT|CREATE|ADD/.test(a)) cls = 'badge-info';
+      return `<span class="badge ${cls}">${esc(a || 'N/A')}</span>`;
+    };
+
+    async function loadLogs() {
+      loading.show('logsBody');
+      try {
+        const res = await api.get(`/admin/logs?page=${state.page}&limit=${state.limit}`);
+        if (!res.success) {
+          toast.error(res.message || 'Failed to load logs');
+          return;
+        }
+        const logs = res.data || [];
+        document.getElementById('logsBody').innerHTML = logs.length
+          ? logs.map(l => `
+              <tr>
+                <td style="white-space: nowrap;">${utils.formatDateTime(l.timestamp)}</td>
+                <td>${esc((l.adminId && l.adminId.name) || 'System')}</td>
+                <td>${actionBadge(l.action)}</td>
+                <td>${esc(l.details || '—')}</td>
+                <td>${esc((l.targetUser && l.targetUser.name) || '—')}</td>
+                <td class="mono text-muted">${esc(l.ipAddress || '—')}</td>
+              </tr>`).join('')
+          : `<tr><td colspan="6"><div class="empty-state"><div class="empty-icon"><i class="fas fa-clipboard-list"></i></div><div class="empty-title">No logs yet</div><div class="empty-hint">Administrative actions will be recorded here.</div></div></td></tr>`;
+
+        const p = res.pagination || {};
+        document.getElementById('logsCount').textContent = `${p.total || logs.length} log entry(ies)`;
+        pagination.render('logsPagination', Number(p.currentPage) || 1, Number(p.pages) || 1, 'goToPage');
+      } catch (error) {
+        console.error(error);
+        toast.error('Failed to load logs');
+      } finally {
+        loading.hide('logsBody');
+      }
+    }
+
+    function goToPage(page) {
+      state.page = page;
+      loadLogs();
+    }
+
+    loadLogs();
+  </script>
+</body>
+</html>

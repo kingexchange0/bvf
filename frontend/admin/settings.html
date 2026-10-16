@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings - BrightVale Finance Admin</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script>window.PAGE_CONFIG = { role: 'admin', active: 'settings', title: 'Platform Settings' };</script>
+  <script src="../js/main.js"></script>
+  <style>
+    .pref-card { border: 2px solid var(--border); border-radius: var(--radius-sm); padding: 14px; text-align: center; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-2); background: var(--surface-2); }
+    .pref-card.active { border-color: var(--primary); color: var(--primary); background: var(--primary-soft); }
+    .pref-card i { display: block; font-size: 20px; margin-bottom: 6px; }
+  </style>
+</head>
+<body>
+  <main class="main-content" id="main">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Platform Settings</h1>
+        <p class="page-subtitle">Configure general, payment, email and notification settings for BrightVale Finance.</p>
+      </div>
+    </div>
+
+    <div class="grid grid-2 mb-16">
+      <div class="card">
+        <div class="card-header"><div class="card-title">General Settings</div></div>
+        <form id="generalForm" onsubmit="handleGeneralSave(event)">
+          <div class="form-group">
+            <label class="form-label">Site Name</label>
+            <input type="text" name="siteName" id="siteName" class="input" value="BrightVale Finance">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Support Email</label>
+            <input type="email" name="supportEmail" id="supportEmail" class="input" placeholder="support@brightvale.com">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Telegram Link</label>
+            <input type="text" name="telegramLink" id="telegramLink" class="input" placeholder="https://t.me/brightvale">
+          </div>
+          <div class="form-group">
+            <label class="form-label">WhatsApp Number</label>
+            <input type="text" name="whatsappNumber" id="whatsappNumber" class="input" placeholder="+1234567890">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Response Time</label>
+            <input type="text" name="responseTime" id="responseTime" class="input" value="24 hours">
+          </div>
+          <button type="submit" class="btn btn-primary btn-block" id="generalBtn">Save General Settings</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><div class="card-title">Payment Settings</div></div>
+        <form id="paymentForm" onsubmit="handlePaymentSave(event)">
+          <div class="form-group">
+            <label class="form-label">BTC Wallet Address</label>
+            <input type="text" name="btcWalletAddress" id="btcWalletAddress" class="input" placeholder="Enter BTC wallet address for deposits">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Minimum Deposit ($)</label>
+            <input type="number" name="minimumDeposit" id="minimumDeposit" class="input" value="50">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Minimum Withdrawal ($)</label>
+            <input type="number" name="minimumWithdrawal" id="minimumWithdrawal" class="input" value="100">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Referral Bonus (%)</label>
+            <input type="number" name="referralBonusPercent" id="referralBonusPercent" class="input" value="5">
+          </div>
+          <button type="submit" class="btn btn-primary btn-block" id="paymentBtn">Save Payment Settings</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="card mb-16">
+      <div class="card-header"><div class="card-title"><i class="fas fa-palette" style="color:var(--primary);margin-right:8px;"></i>Preferences â€” Color Theme</div></div>
+      <p class="text-small text-muted mb-16">Choose how the admin dashboard looks for your account. This preference is stored on this device.</p>
+      <div class="grid grid-3" id="themePrefRow" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+        <div class="pref-card" data-theme-choice="light"><i class="fas fa-sun"></i>Light</div>
+        <div class="pref-card" data-theme-choice="dark"><i class="fas fa-moon"></i>Dark</div>
+        <div class="pref-card" data-theme-choice="system"><i class="fas fa-desktop"></i>System</div>
+      </div>
+    </div>
+
+    <div class="card mb-16">
+      <div class="card-header"><div class="card-title">Welcome Notification Settings</div></div>
+      <form id="welcomeForm" onsubmit="handleWelcomeSave(event)">
+        <div class="form-group">
+          <label class="form-label">Welcome Title</label>
+          <input type="text" name="welcomeTitle" id="welcomeTitle" class="input" placeholder="Welcome to BrightVale Finance!" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Welcome Message</label>
+          <textarea name="welcomeMessage" id="welcomeMessage" class="textarea" placeholder="Enter welcome message for new users" rows="3" required></textarea>
+        </div>
+        <button type="submit" class="btn btn-success btn-block" id="welcomeBtn"><i class="fas fa-save"></i> Save Welcome Message</button>
+      </form>
+    </div>
+
+    <!-- Email Provider Configuration (env-driven) -->
+    <div class="card mb-16">
+      <div class="card-header"><div class="card-title"><i class="fas fa-envelope" style="color: var(--primary); margin-right: 8px;"></i>Email Provider</div></div>
+      <div class="card-body">
+        <div id="emailStatusBox" style="padding: 14px 16px; border-radius: 8px; margin-bottom: 16px;">
+          <div class="text-small text-muted">Loading email statusâ€¦</div>
+        </div>
+        <form id="testEmailForm" onsubmit="handleTestEmail(event)">
+          <div class="form-group">
+            <label class="form-label">Send a Test Email</label>
+            <input type="email" name="to" id="testEmailTo" class="input" placeholder="recipient@example.com" required>
+          </div>
+          <button type="submit" class="btn btn-primary" id="testEmailBtn" style="width: 100%;"><i class="fas fa-paper-plane"></i> Send Test Email</button>
+        </form>
+        <div style="background: var(--surface-2); border-left: 4px solid var(--primary); padding: 12px 14px; border-radius: 0 8px 8px 0; margin-top: 12px;">
+          <div class="text-small" style="color: var(--text-2);"><i class="fas fa-info-circle" style="margin-right: 6px;"></i>Email is configured via backend environment variables only (<code>EMAIL_PROVIDER</code>, credentials, sender). Edit <code>backend/.env</code> and restart the server to change providers.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Email Broadcast to All Users -->
+    <div class="card mb-16">
+      <div class="card-header"><div class="card-title"><i class="fas fa-bullhorn" style="color: var(--warning, #D97706); margin-right: 8px;"></i>Email Broadcast to All Users</div></div>
+      <form id="emailBroadcastAllForm" onsubmit="handleEmailBroadcastAll(event)">
+        <div class="form-group">
+          <label class="form-label">Email Subject</label>
+          <input type="text" name="subject" id="broadcastAllSubject" class="input" placeholder="Enter email subject" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email Content (HTML)</label>
+          <textarea name="html" id="broadcastAllHtml" class="textarea" placeholder="<h1>Hello {{name}},</h1><p>Your message here...</p>" rows="6" required></textarea>
+          <div class="form-hint mt-8">Use {{name}} for the user's name and {{email}} for the user's email</div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" id="emailBroadcastAllBtn"><i class="fas fa-paper-plane"></i> Send Email to All Users</button>
+      </form>
+    </div>
+
+    <!-- Email Broadcast to Specific User -->
+    <div class="card mb-16">
+      <div class="card-header"><div class="card-title"><i class="fas fa-user" style="color: #16A34A; margin-right: 8px;"></i>Send Email to Specific User</div></div>
+      <form id="emailUserForm" onsubmit="handleEmailToUser(event)">
+        <div class="form-group">
+          <label class="form-label">Select User</label>
+          <select name="userId" id="emailUserId" class="select" required>
+            <option value="">Loading users...</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email Subject</label>
+          <input type="text" name="subject" id="emailUserSubject" class="input" placeholder="Enter email subject" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email Content (HTML)</label>
+          <textarea name="html" id="emailUserHtml" class="textarea" placeholder="<h1>Hello {{name}},</h1><p>Your personalized message here...</p>" rows="6" required></textarea>
+          <div class="form-hint mt-8">Use {{name}} for the user's name and {{email}} for the user's email</div>
+        </div>
+        <button type="submit" class="btn btn-success btn-block" id="emailUserBtn"><i class="fas fa-paper-plane"></i> Send Email to User</button>
+      </form>
+    </div>
+
+    <!-- In-App Broadcast (existing feature) -->
+    <div class="card mb-16">
+      <div class="card-header"><div class="card-title"><i class="fas fa-bell" style="color: var(--primary); margin-right: 8px;"></i>In-App Notification Broadcast</div></div>
+      <form id="broadcastForm" onsubmit="handleBroadcast(event)">
+        <div class="form-group">
+          <label class="form-label">Message Title</label>
+          <input type="text" name="title" id="broadcastTitle" class="input" placeholder="Enter message title" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Message Content</label>
+          <textarea name="message" id="broadcastMessage" class="textarea" placeholder="Enter message content" required></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Message Type</label>
+          <select name="type" id="broadcastType" class="select">
+            <option value="info">Info</option>
+            <option value="success">Success</option>
+            <option value="warning">Warning</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" id="broadcastBtn"><i class="fas fa-bullhorn"></i> Send In-App Broadcast to All Users</button>
+      </form>
+    </div>
+
+    <!-- Logout Section -->
+    <div class="card">
+      <div class="card-header"><div class="card-title">Session</div></div>
+      <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+        <div>
+          <div style="font-weight: 700; margin-bottom: 4px;">Logout</div>
+          <div class="text-small text-muted">End your admin session and return to the login page.</div>
+        </div>
+        <button class="btn btn-danger-soft" onclick="auth.logout()">
+          <i class="fas fa-right-from-bracket"></i> Logout
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // Check admin authorization
+    (function checkAuth() {
+      if (!auth.isLoggedIn()) {
+        window.location.href = '../login.html';
+        return;
+      }
+      if (!auth.isAdmin()) {
+        window.location.href = '../user/dashboard.html';
+        return;
+      }
+    })();
+
+    // ---- Preferences: color theme (Light / Dark / System) ----
+    function currentThemeChoice() {
+      let stored = null;
+      try { stored = localStorage.getItem('brightvale-theme'); } catch (e) { stored = null; }
+      return stored === 'dark' ? 'dark' : (stored === 'light' ? 'light' : 'system');
+    }
+    function applyThemeChoice(choice) {
+      document.querySelectorAll('#themePrefRow .pref-card').forEach(function (c) {
+        c.classList.toggle('active', c.dataset.themeChoice === choice);
+      });
+    }
+    document.getElementById('themePrefRow').addEventListener('click', function (e) {
+      const card = e.target.closest('.pref-card');
+      if (!card) return;
+      const choice = card.dataset.themeChoice;
+      applyThemeChoice(choice);
+      if (choice === 'system') {
+        try { localStorage.removeItem('brightvale-theme'); } catch (err) { /* ignore */ }
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.dataset.theme = prefersDark ? 'dark' : 'light';
+      } else {
+        theme.set(choice);
+      }
+      toast.success('Theme preference saved');
+    });
+    applyThemeChoice(currentThemeChoice());
+
+    async function loadSettings() {
+      try {
+        const response = await api.get('/settings/admin');
+        if (response.success) {
+          const s = response.data;
+          document.getElementById('siteName').value = s.siteName || 'BrightVale Finance';
+          document.getElementById('supportEmail').value = s.supportEmail || '';
+          document.getElementById('telegramLink').value = s.telegramLink || '';
+          document.getElementById('whatsappNumber').value = s.whatsappNumber || '';
+          document.getElementById('responseTime').value = s.responseTime || '24 hours';
+          document.getElementById('btcWalletAddress').value = s.btcWalletAddress || '';
+          document.getElementById('minimumDeposit').value = s.minimumDeposit || 50;
+          document.getElementById('minimumWithdrawal').value = s.minimumWithdrawal || 100;
+          document.getElementById('referralBonusPercent').value = s.referralBonusPercent || 5;
+          document.getElementById('welcomeTitle').value = s.welcomeNotificationTitle || 'Welcome to BrightVale Finance!';
+          document.getElementById('welcomeMessage').value = s.welcomeNotificationMessage || 'Thank you for joining BrightVale Finance. Start your investment journey today!';
+          loadEmailStatus();
+        }
+      } catch (error) { console.error('Settings error:', error); }
+    }
+
+    // Load users for email dropdown
+    async function loadUsersForEmail() {
+      try {
+        const response = await api.get('/admin/users?limit=1000');
+        if (response.success) {
+          const select = document.getElementById('emailUserId');
+          select.innerHTML = '<option value="">Select a user...</option>' +
+            response.data.map(u => `<option value="${u._id}">${u.name} (${u.email})</option>`).join('');
+        }
+      } catch (error) {
+        console.error('Load users error:', error);
+        document.getElementById('emailUserId').innerHTML = '<option value="">Failed to load users</option>';
+      }
+    }
+
+    // Save SMTP settings
+    async function loadEmailStatus() {
+      const box = document.getElementById('emailStatusBox');
+      if (!box) return;
+      try {
+        const res = await api.get('/admin/email/status');
+        if (res && res.success && res.data) {
+          const d = res.data;
+          if (d.configured) {
+            box.innerHTML = '<div style="display:flex;align-items:center;gap:10px;"><span class="badge badge-success"><i class="fas fa-check"></i> Configured</span>' +
+              '<span class="text-small"><b>' + utils.escapeHtml(d.provider || '') + '</b> — sending as ' + utils.escapeHtml(d.fromEmail || '') + '</span></div>';
+            box.style.background = 'var(--success-soft, rgba(132,204,22,.12))';
+          } else {
+            box.innerHTML = '<div style="display:flex;align-items:center;gap:10px;"><span class="badge badge-danger"><i class="fas fa-triangle-exclamation"></i> Not configured</span>' +
+              '<span class="text-small">' + (d.issues || []).map(utils.escapeHtml).join('<br>') + '</span></div>';
+            box.style.background = 'var(--danger-soft, rgba(239,68,68,.1))';
+          }
+        } else {
+          box.innerHTML = '<div class="text-small text-muted">Could not load email status.</div>';
+        }
+      } catch (e) {
+        box.innerHTML = '<div class="text-small text-muted">Could not load email status.</div>';
+      }
+    }
+
+    async function handleTestEmail(e) {
+      e.preventDefault();
+      const btn = document.getElementById('testEmailBtn');
+      const to = document.getElementById('testEmailTo').value.trim();
+      if (!to) { toast.error('Enter a recipient email'); return; }
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+      try {
+        const res = await api.post('/admin/email/test', { to });
+        if (res && res.success) {
+          toast.success(res.message || 'Test email sent — check the inbox.');
+        } else {
+          toast.error((res && res.message) || 'Failed to send test email');
+        }
+      } catch (err) { toast.error('Network error'); }
+      finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Test Email';
+      }
+    }
+
+    // Load users for email dropdown
+    async function loadUsersForEmail() {
+      try {
+        const response = await api.get('/admin/users?limit=1000');
+        if (response.success) {
+          const select = document.getElementById('emailUserId');
+          select.innerHTML = '<option value="">Select a user...</option>' +
+            response.data.map(u => `<option value="${u._id}">${u.name} (${u.email})</option>`).join('');
+        }
+      } catch (error) {
+        console.error('Load users error:', error);
+        document.getElementById('emailUserId').innerHTML = '<option value="">Failed to load users</option>';
+      }
+    }
+    async function handleEmailBroadcastAll(e) {
+      e.preventDefault();
+      const btn = document.getElementById('emailBroadcastAllBtn');
+
+      if (!confirm('Are you sure you want to send this email to ALL users?')) return;
+
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending to all users...';
+
+      try {
+        const response = await api.post('/admin/email/broadcast', {
+          subject: document.getElementById('broadcastAllSubject').value,
+          html: document.getElementById('broadcastAllHtml').value
+        });
+
+        if (response.success) {
+          toast.success(`Email sent! ${response.data.sent} delivered, ${response.data.failed} failed`);
+          e.target.reset();
+        } else {
+          toast.error(response.message || 'Failed to send broadcast');
+        }
+      } catch (error) { toast.error('Network error'); }
+      finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Email to All Users';
+      }
+    }
+
+    // Send email to specific user
+    async function handleEmailToUser(e) {
+      e.preventDefault();
+      const btn = document.getElementById('emailUserBtn');
+
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+
+      try {
+        const response = await api.post('/admin/email/send-user', {
+          userId: document.getElementById('emailUserId').value,
+          subject: document.getElementById('emailUserSubject').value,
+          html: document.getElementById('emailUserHtml').value
+        });
+
+        if (response.success) {
+          toast.success('Email sent successfully!');
+          e.target.reset();
+        } else {
+          toast.error(response.message || 'Failed to send email');
+        }
+      } catch (error) { toast.error('Network error'); }
+      finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Email to User';
+      }
+    }
+
+    async function handleWelcomeSave(e) {
+      e.preventDefault();
+      const btn = document.getElementById('welcomeBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+      try {
+        const response = await api.put('/settings', {
+          welcomeNotificationTitle: document.getElementById('welcomeTitle').value,
+          welcomeNotificationMessage: document.getElementById('welcomeMessage').value
+        });
+
+        if (response.success) {
+          toast.success('Welcome message saved successfully');
+        } else {
+          toast.error(response.message || 'Failed to save');
+        }
+      } catch (error) { toast.error('Network error'); }
+      finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-save"></i> Save Welcome Message';
+      }
+    }
+
+    async function handleGeneralSave(e) {
+      e.preventDefault();
+      const btn = document.getElementById('generalBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+      try {
+        const response = await api.put('/settings', {
+          siteName: document.getElementById('siteName').value,
+          supportEmail: document.getElementById('supportEmail').value,
+          telegramLink: document.getElementById('telegramLink').value,
+          whatsappNumber: document.getElementById('whatsappNumber').value,
+          responseTime: document.getElementById('responseTime').value
+        });
+
+        if (response.success) {
+          toast.success('General settings saved');
+        } else {
+          toast.error(response.message || 'Failed to save');
+        }
+      } catch (error) { toast.error('Network error'); }
+      finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-save"></i> Save General Settings';
+      }
+    }
+
+    async function handlePaymentSave(e) {
+      e.preventDefault();
+      const btn = document.getElementById('paymentBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+      try {
+        const response = await api.put('/settings', {
+          btcWalletAddress: document.getElementById('btcWalletAddress').value,
+          minimumDeposit: parseFloat(document.getElementById('minimumDeposit').value),
+          minimumWithdrawal: parseFloat(document.getElementById('minimumWithdrawal').value),
+          referralBonusPercent: parseFloat(document.getElementById('referralBonusPercent').value)
+        });
+
+        if (response.success) {
+          toast.success('Payment settings saved');
+        } else {
+          toast.error(response.message || 'Failed to save');
+        }
+      } catch (error) { toast.error('Network error'); }
+      finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-save"></i> Save Payment Settings';
+      }
+    }
+
+    async function handleBroadcast(e) {
+      e.preventDefault();
+      const btn = document.getElementById('broadcastBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+
+      try {
+        const response = await api.post('/notifications/admin/broadcast', {
+          title: document.getElementById('broadcastTitle').value,
+          message: document.getElementById('broadcastMessage').value,
+          type: document.getElementById('broadcastType').value
+        });
+
+        if (response.success) {
+          toast.success('Broadcast sent successfully');
+          e.target.reset();
+        } else {
+          toast.error(response.message || 'Failed to send');
+        }
+      } catch (error) { toast.error('Network error'); }
+      finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-bullhorn"></i> Send Broadcast to All Users';
+      }
+    }
+
+    loadSettings();
+    loadUsersForEmail();
+  </script>
+</body>
+</html>

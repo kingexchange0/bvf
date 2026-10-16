@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Investments - BrightVale Finance Admin</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script>window.PAGE_CONFIG = { role: 'admin', active: 'investments', title: 'Investments' };</script>
+  <script src="../js/main.js"></script>
+</head>
+<body>
+  <main class="main-content" id="main">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Investments</h1>
+        <p class="page-subtitle">All user investments across every plan.</p>
+      </div>
+      <a class="btn btn-ghost" href="investment-plans.html"><i class="fas fa-diagram-project"></i> Manage plans</a>
+    </div>
+
+    <div class="stat-grid" id="invStats"></div>
+
+    <div class="card mt-16">
+      <div class="filter-bar mb-16">
+        <select class="select" id="statusFilter" style="width: auto;">
+          <option value="">All statuses</option>
+          <option value="active">Active</option>
+          <option value="completed">Completed</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+        <button class="btn btn-primary" id="applyBtn"><i class="fas fa-filter"></i> Apply</button>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr><th>User</th><th>Plan</th><th>Amount</th><th>Expected Return</th><th>Start</th><th>End</th><th>Status</th></tr>
+          </thead>
+          <tbody id="invBody"></tbody>
+        </table>
+      </div>
+      <div class="table-footer">
+        <span id="invCount"></span>
+        <div id="invPagination"></div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    if (!auth.requireAdmin()) throw new Error('Admin access required');
+
+    const esc = utils.escapeHtml;
+    const state = { page: 1, limit: 20, status: '' };
+
+    const badgeClass = (s) => {
+      s = (s || '').toLowerCase();
+      if (['approved', 'completed', 'active', 'paid', 'verified', 'available', 'sold'].includes(s)) return 'badge-success';
+      if (['pending', 'processing'].includes(s)) return 'badge-warning';
+      if (['declined', 'rejected', 'suspended', 'cancelled', 'canceled', 'failed', 'defaulted'].includes(s)) return 'badge-danger';
+      if (['draft', 'unavailable', 'inactive', 'not_submitted'].includes(s)) return 'badge-muted';
+      if (s === 'featured') return 'badge-primary';
+      return 'badge-muted';
+    };
+    const badge = (s) => `<span class="badge ${badgeClass(s)}">${esc(s ? String(s).replace(/_/g, ' ') : 'N/A')}</span>`;
+
+    const statChip = (label, value, icon) => `
+      <div class="stat-card">
+        <div class="flex-between">
+          <span class="stat-icon"><i class="fas ${icon}"></i></span>
+        </div>
+        <div>
+          <div class="stat-label">${esc(label)}</div>
+          <div class="stat-value">${value}</div>
+        </div>
+      </div>`;
+
+    async function loadInvestments() {
+      loading.show('invBody');
+      try {
+        const params = new URLSearchParams({ page: state.page, limit: state.limit });
+        if (state.status) params.set('status', state.status);
+        const res = await api.get(`/investments/admin/all?${params.toString()}`);
+        if (!res.success) {
+          toast.error(res.message || 'Failed to load investments');
+          return;
+        }
+        const stats = res.stats || {};
+        document.getElementById('invStats').innerHTML =
+          statChip('Active Volume', utils.formatCurrency(stats.totalActive), 'fa-chart-line') +
+          statChip('Completed Volume', utils.formatCurrency(stats.totalCompleted), 'fa-circle-check') +
+          statChip('Active Investments', Number(stats.activeCount || 0).toLocaleString(), 'fa-layer-group');
+
+        const investments = res.data || [];
+        document.getElementById('invBody').innerHTML = investments.length
+          ? investments.map(i => `
+              <tr>
+                <td>
+                  ${esc((i.userId && i.userId.name) || 'Deleted user')}
+                  <div class="text-small text-muted">${esc((i.userId && i.userId.email) || '')}</div>
+                </td>
+                <td>${esc(i.planName || (i.planId && i.planId.name) || 'N/A')}</td>
+                <td>${utils.formatCurrency(i.amount)}</td>
+                <td>${utils.formatCurrency(i.expectedReturns)}</td>
+                <td>${utils.formatDate(i.startDate)}</td>
+                <td>${utils.formatDate(i.endDate)}</td>
+                <td>${badge(i.status)}</td>
+              </tr>`).join('')
+          : `<tr><td colspan="7"><div class="empty-state"><div class="empty-icon"><i class="fas fa-chart-line"></i></div><div class="empty-title">No investments found</div><div class="empty-hint">Investments will appear here once users invest in a plan.</div></div></td></tr>`;
+
+        const p = res.pagination || {};
+        document.getElementById('invCount').textContent = `${p.total || investments.length} investment(s)`;
+        pagination.render('invPagination', Number(p.currentPage) || 1, Number(p.pages) || 1, 'goToPage');
+      } catch (error) {
+        console.error(error);
+        toast.error('Failed to load investments');
+      } finally {
+        loading.hide('invBody');
+      }
+    }
+
+    function goToPage(page) {
+      state.page = page;
+      loadInvestments();
+    }
+
+    document.getElementById('applyBtn').addEventListener('click', () => {
+      state.status = document.getElementById('statusFilter').value;
+      state.page = 1;
+      loadInvestments();
+    });
+
+    loadInvestments();
+  </script>
+</body>
+</html>

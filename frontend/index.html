@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BrightVale Finance — Your Bright Path to Finance.</title>
+  <meta name="description" content="BrightVale Finance — modern digital banking: checking and savings accounts, transfers, cards, savings and investment tools, and loans, all in one place.">
+  <link rel="icon" type="image/png" href="assets/img/favicon.png">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .landing-page section[id],
+    .landing-page footer[id] { scroll-margin-top: 90px; }
+
+    .landing-page .brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
+    .landing-page .nav-actions { display: flex; align-items: center; gap: 10px; }
+    .landing-page .nav-toggle { display: none; margin-left: auto; }
+    .landing-page .nav-links .nav-links-cta { display: none; }
+
+    @media (max-width: 992px) {
+      .landing-page .nav-toggle { display: inline-flex; }
+      .landing-page .nav-actions { display: none; }
+      .landing-page .landing-nav .nav-links {
+        display: none;
+        position: absolute;
+        top: calc(100% + 8px);
+        left: 16px; right: 16px;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 4px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow-lg);
+        padding: 12px;
+      }
+      .landing-page .landing-nav .nav-links.open { display: flex; }
+      .landing-page .landing-nav .nav-links a { padding: 10px 12px; border-radius: var(--radius-sm); }
+      .landing-page .landing-nav .nav-links a:hover { background: var(--surface-2); }
+      .landing-page .nav-links .nav-links-cta { display: none; }
+      .landing-page .landing-nav .nav-links.open .nav-links-cta { display: flex; }
+      .landing-page .nav-links .nav-links-cta { gap: 10px; padding: 10px 4px 4px; border-top: 1px solid var(--border-soft); margin-top: 6px; }
+      .landing-page .nav-links .nav-links-cta a { flex: 1; text-align: center; }
+    }
+
+    .mockup-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px dashed var(--border-soft); }
+    .mockup-row:last-child { border-bottom: none; }
+    .mockup-bar { height: 8px; border-radius: 999px; background: var(--bg-soft); overflow: hidden; margin-top: 14px; }
+    .mockup-bar span { display: block; height: 100%; width: 64%; background: var(--gradient); border-radius: 999px; }
+    .mockup-chip { position: absolute; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); padding: 12px 16px; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 10px; animation: float 5s ease-in-out infinite; }
+
+    .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; margin-top: 40px; }
+    .steps-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 24px; margin-top: 40px; counter-reset: step; }
+    .step-card { position: relative; }
+    .step-card .step-num { counter-increment: step; }
+    .step-card .step-num::before {
+      content: counter(step, decimal-leading-zero);
+      font-family: var(--font-display); font-size: 34px; font-weight: 800;
+      background: var(--gradient); -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent; color: transparent;
+    }
+    .risk-note {
+      margin-top: 24px; padding: 16px 20px; border-radius: var(--radius);
+      background: var(--warning-soft); color: var(--warning); font-size: 13.5px; line-height: 1.6;
+      display: flex; gap: 12px; align-items: flex-start;
+    }
+    .cta-band { background: var(--gradient); border-radius: var(--radius-lg); padding: 56px 32px; text-align: center; color: #fff; }
+    .cta-band h2 { font-family: var(--font-display); font-size: clamp(24px, 3.4vw, 36px); margin-bottom: 12px; }
+    .cta-band p { opacity: .9; max-width: 520px; margin: 0 auto 24px; }
+
+    .stream-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 22px; margin-top: 34px; }
+    .stream-card { background: var(--surface); border: 1px solid var(--border-soft); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow); transition: transform .25s ease, box-shadow .25s ease; }
+    .stream-card:hover { transform: translateY(-5px); box-shadow: var(--shadow-lg); }
+    .stream-img { height: 170px; overflow: hidden; }
+    .stream-img img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .4s ease; }
+    .stream-card:hover .stream-img img { transform: scale(1.06); }
+    .stream-body { padding: 20px 22px 26px; }
+    .stream-body h3 { font-family: var(--font-display); font-size: 19px; margin: 12px 0 8px; }
+    .stream-body p { color: var(--text-2); font-size: 14.5px; line-height: 1.6; }
+
+    .review-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 22px; margin-top: 34px; }
+    .review-card { background: var(--surface); border: 1px solid var(--border-soft); border-radius: var(--radius-lg); padding: 26px; box-shadow: var(--shadow); margin: 0; }
+    .review-stars { color: var(--accent); font-size: 14px; letter-spacing: 3px; margin-bottom: 14px; }
+    .review-card blockquote { margin: 0 0 18px; font-size: 15px; line-height: 1.65; color: var(--text); }
+    .review-card figcaption { display: flex; align-items: center; gap: 12px; }
+    .review-avatar { width: 42px; height: 42px; border-radius: 50%; color: #fff; font-weight: 700; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .review-card figcaption small { display: block; color: var(--text-3); }
+
+    .team-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 22px; margin-top: 34px; }
+    .team-card { background: var(--surface); border: 1px solid var(--border-soft); border-radius: var(--radius-lg); padding: 28px 22px; text-align: center; box-shadow: var(--shadow); transition: transform .25s ease; }
+    .team-card:hover { transform: translateY(-5px); }
+    .team-avatar { width: 96px; height: 96px; border-radius: 50%; object-fit: cover; display: inline-block; margin-bottom: 16px; border: 3px solid var(--surface); box-shadow: var(--shadow); }
+    .team-card h3 { font-family: var(--font-display); font-size: 17px; margin-bottom: 2px; }
+    .team-role { color: var(--primary); font-weight: 600; font-size: 13.5px; margin-bottom: 10px; }
+    .team-bio { color: var(--text-2); font-size: 13.5px; line-height: 1.6; margin: 0; }
+  </style>
+</head>
+<body class="landing-page">
+
+  <nav class="landing-nav" aria-label="Main navigation">
+    <div class="container">
+      <a class="brand" href="index.html" aria-label="BrightVale Finance home">
+        <span class="brand-logo-wrap"><img class="brand-logo brand-logo-light-img" src="assets/img/brightvale-logo.png" alt="BrightVale Finance"><img class="brand-logo brand-logo-dark" src="assets/img/brightvale-logo-light.png" alt="" aria-hidden="true"></span>
+      </a>
+      <div class="nav-links" id="navLinks">
+        <a href="#banking">Banking</a>
+        <a href="#investing">Savings &amp; Investments</a>
+        <a href="#loans">Loans</a>
+        <a href="#security">Security</a>
+        <a href="#earn">How We Earn</a>
+        <a href="#reviews">Reviews</a>
+        <a href="#team">Team</a>
+        <a href="#how-it-works">How It Works</a>
+        <div class="nav-links-cta">
+          <a class="btn btn-ghost btn-sm" href="login.html">Sign In</a>
+          <a class="btn btn-primary btn-sm" href="login.html#register">Join Us Now</a>
+        </div>
+      </div>
+      <div class="nav-actions">
+        <a class="btn btn-ghost btn-sm" href="login.html">Sign In</a>
+        <a class="btn btn-primary btn-sm" href="login.html#register">Join Us Now</a>
+      </div>
+      <button class="icon-btn nav-toggle" id="navToggle" aria-label="Toggle navigation"><i class="fas fa-bars"></i></button>
+    </div>
+  </nav>
+
+  <header class="hero container">
+    <div class="reveal">
+      <span class="section-tag"><i class="fas fa-sun"></i> Digital banking, simplified</span>
+      <h1 class="hero-title">Your Bright Path to <span class="gradient-text">Finance.</span></h1>
+      <p class="hero-sub">BrightVale Finance brings everyday banking, savings, investments, and loans together in one calm, modern dashboard — built to make your money easier to understand and manage.</p>
+      <div class="hero-cta">
+        <a class="btn btn-primary btn-lg" href="login.html#register">Join Us Now</a>
+        <a class="btn btn-ghost btn-lg" href="login.html">Sign In</a>
+      </div>
+    </div>
+    <div class="hero-visual reveal">
+      <div class="mockup-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div>
+            <div class="text-muted text-small">Balance overview</div>
+            <div style="font-family:var(--font-display);font-size:30px;font-weight:800;">$24,806.20</div>
+            <div class="text-small" style="color:var(--success);font-weight:600;"><i class="fas fa-arrow-trend-up"></i> +12.4% this month</div>
+          </div>
+          <span class="brand-logo-wrap"><img class="brand-logo" style="height:30px" src="assets/img/brightvale-logo.png" alt="BrightVale Finance"></span>
+        </div>
+        <div class="mockup-bar"><span></span></div>
+        <div style="margin-top:16px;">
+          <div class="mockup-row">
+            <span class="text-muted text-small"><i class="fas fa-arrow-down" style="color:var(--success);margin-right:6px;"></i>Deposit</span>
+            <span class="text-small" style="font-weight:600;">+$3,500.00</span>
+          </div>
+          <div class="mockup-row">
+            <span class="text-muted text-small"><i class="fas fa-arrow-up" style="color:var(--warning);margin-right:6px;"></i>Card payment</span>
+            <span class="text-small" style="font-weight:600;">-$86.20</span>
+          </div>
+          <div class="mockup-row">
+            <span class="text-muted text-small"><i class="fas fa-chart-line" style="color:var(--primary);margin-right:6px;"></i>Savings goal</span>
+            <span class="text-small" style="font-weight:600;">$8,350.00</span>
+          </div>
+        </div>
+      </div>
+      <div class="mockup-chip" style="top:-8px;right:-6px;"><i class="fas fa-shield-halved" style="color:var(--primary);"></i> Security first</div>
+      <div class="mockup-chip" style="bottom:-14px;left:-6px;animation-delay:1.2s;"><i class="fas fa-bolt" style="color:var(--accent);"></i> Instant transfers</div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Banking -->
+    <section class="section container" id="banking">
+      <span class="section-tag reveal"><i class="fas fa-building-columns"></i> Banking</span>
+      <h2 class="section-title reveal">Everyday money, without the friction</h2>
+      <p class="section-sub reveal">A checking-style account, savings tools, transfers, and cards — designed to be clear and quick.</p>
+      <div class="features-grid">
+        <div class="feature-card reveal">
+          <span class="stat-icon"><i class="fas fa-wallet"></i></span>
+          <div class="feature-title">Checking-style account</div>
+          <p>Hold a USD balance, track spending, and see exactly where your money goes with a clean activity feed.</p>
+        </div>
+        <div class="feature-card reveal">
+          <span class="stat-icon"><i class="fas fa-money-bill-transfer"></i></span>
+          <div class="feature-title">Fast transfers</div>
+          <p>Move money between BrightVale accounts in a few taps, with a clear record of every transfer you make.</p>
+        </div>
+        <div class="feature-card reveal">
+          <span class="stat-icon"><i class="fas fa-credit-card"></i></span>
+          <div class="feature-title">Cards, managed simply</div>
+          <p>Request and manage your card from the same dashboard, and keep an eye on every card transaction.</p>
+        </div>
+        <div class="feature-card reveal">
+          <span class="stat-icon"><i class="fas fa-piggy-bank"></i></span>
+          <div class="feature-title">Savings goals</div>
+          <p>Set aside money toward the things that matter to you and watch your progress over time.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Savings & Investments -->
+    <section class="section container" id="investing">
+      <span class="section-tag reveal"><i class="fas fa-chart-line"></i> Savings &amp; Investments</span>
+      <h2 class="section-title reveal">Put your money to work — with your eyes open</h2>
+      <p class="section-sub reveal">Choose from published investment plans, follow your earnings over time, and always know the terms before you commit.</p>
+      <div class="features-grid">
+        <div class="feature-card reveal">
+          <span class="stat-icon"><i class="fas fa-seedling"></i></span>
+          <div class="feature-title">Published plans</div>
+          <p>Each plan states its rate and duration up front, so you can compare options before investing.</p>
+        </div>
+        <div class="feature-card reveal">
+          <span class="stat-icon"><i class="fas fa-clock-rotate-left"></i></span>
+          <div class="feature-title">Tracked over time</div>
+          <p>Follow active investments from your dashboard and see a full history of completed ones.</p>
+        </div>
+        <div class="feature-card reveal">
+          <span class="stat-icon"><i class="fas fa-hand-holding-dollar"></i></span>
+          <div class="feature-title">Flexible amounts</div>
+          <p>Start with an amount that suits you, within the limits of each plan — no surprises.</p>
+        </div>
+      </div>
+      <div class="risk-note reveal">
+        <i class="fas fa-triangle-exclamation" style="margin-top:2px;"></i>
+        <span><strong>Market note:</strong> returns follow plan terms and prevailing market conditions — yields may rise or fall with market performance. BrightVale Finance does not provide financial advice.</span>
+      </div>
+    </section>
+
+    <!-- Loans -->
+    <section class="section container" id="loans">
+      <span class="section-tag reveal"><i class="fas fa-hand-holding-dollar"></i> Loans</span>
+      <h2 class="section-title reveal">Borrowing with clear terms</h2>
+      <p class="section-sub reveal">Browse available loan plans, submit a request, and track its review from one place.</p>
+      <div class="features-grid">
+        <div class="feature-card reveal">
+          <span class="stat-icon"><i class="fas fa-list-check"></i></span>
+          <div class="feature-title">Transparent plans</div>
+          <p>Loan plans show amounts, durations, and rates before you apply, so you can decide with confidence.</p>
+        </div>
+        <div class="feature-card reveal">
+          <span class="stat-icon"><i class="fas fa-file-signature"></i></span>
+          <div class="feature-title">Simple requests</div>
+          <p>Apply in minutes and follow the status of your request as it is reviewed.</p>
+        </div>
+        <div class="feature-card reveal">
+          <span class="stat-icon"><i class="fas fa-receipt"></i></span>
+          <div class="feature-title">Repayment tracking</div>
+          <p>Keep up with active loans and your repayment history from your dashboard.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Security -->
+    <section class="section container" id="security">
+      <span class="section-tag reveal"><i class="fas fa-shield-halved"></i> Security</span>
+      <h2 class="section-title reveal">Security you can rely on</h2>
+      <p class="section-sub reveal">Your account and data are protected at every step.</p>
+      <div class="features-grid">
+        <div class="feature-card reveal">
+          <span class="stat-icon"><i class="fas fa-lock"></i></span>
+          <div class="feature-title">Encrypted in transit</div>
+          <p>All traffic between your browser and BrightVale is encrypted in transit, and passwords are stored only as strong hashes — never in plain text.</p>
+        </div>
+        <div class="feature-card reveal">
+          <span class="stat-icon"><i class="fas fa-key"></i></span>
+          <div class="feature-title">Verified sessions</div>
+          <p>Every request is authenticated with a signed token that expires automatically, so only you can access your account.</p>
+        </div>
+        <div class="feature-card reveal">
+          <span class="stat-icon"><i class="fas fa-user-shield"></i></span>
+          <div class="feature-title">Identity verification (KYC)</div>
+          <p>Identity documents are reviewed to help keep accounts genuine.</p>
+        </div>
+        <div class="feature-card reveal">
+          <span class="stat-icon"><i class="fas fa-list-check"></i></span>
+          <div class="feature-title">Monitored access</div>
+          <p>Administrative actions are logged and reviewed, and sensitive operations require authorization.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- How it works -->
+    <section class="section container" id="how-it-works">
+      <span class="section-tag reveal"><i class="fas fa-route"></i> How it works</span>
+      <h2 class="section-title reveal">Get started in four steps</h2>
+      <div class="steps-grid">
+        <div class="feature-card step-card reveal"><div class="step-num"></div><div class="feature-title">Create your account</div><p>Sign up with your name and email in under a minute.</p></div>
+        <div class="feature-card step-card reveal"><div class="step-num"></div><div class="feature-title">Verify your identity</div><p>Complete KYC so your account is fully enabled.</p></div>
+        <div class="feature-card step-card reveal"><div class="step-num"></div><div class="feature-title">Add funds</div><p>Make a deposit and it appears in your balance once confirmed.</p></div>
+        <div class="feature-card step-card reveal"><div class="step-num"></div><div class="feature-title">Save, invest, or borrow</div><p>Explore savings goals, investment plans, and loans from your dashboard.</p></div>
+      </div>
+    </section>
+
+    <!-- How we earn -->
+    <section class="section container" id="earn">
+      <span class="section-tag reveal"><i class="fas fa-seedling"></i> How we earn</span>
+      <h2 class="section-title reveal">Real revenue behind every balance</h2>
+      <p class="section-sub reveal">BrightVale generates income through diversified, professionally managed streams — so the platform earns while you do.</p>
+      <div class="stream-grid">
+        <article class="stream-card reveal">
+          <div class="stream-img"><img src="assets/img/agro.jpg" alt="Agricultural farmland at sunrise" loading="lazy"></div>
+          <div class="stream-body">
+            <span class="stat-icon"><i class="fas fa-wheat-awn"></i></span>
+            <h3>Agribusiness</h3>
+            <p>Farmland and agro-processing partnerships deliver steady, season-backed returns anchored in real produce demand.</p>
+          </div>
+        </article>
+        <article class="stream-card reveal">
+          <div class="stream-img"><img src="assets/img/stocks.jpg" alt="Equity market charts" loading="lazy"></div>
+          <div class="stream-body">
+            <span class="stat-icon"><i class="fas fa-chart-column"></i></span>
+            <h3>Equities &amp; funds</h3>
+            <p>A disciplined portfolio of index funds and blue-chip equities compounds value across market cycles.</p>
+          </div>
+        </article>
+        <article class="stream-card reveal">
+          <div class="stream-img"><img src="assets/img/crypto.jpg" alt="Digital assets" loading="lazy"></div>
+          <div class="stream-body">
+            <span class="stat-icon"><i class="fas fa-coins"></i></span>
+            <h3>Digital assets</h3>
+            <p>Carefully sized positions in major digital assets capture long-term growth while strict risk limits protect capital.</p>
+          </div>
+        </article>
+        <article class="stream-card reveal">
+          <div class="stream-img"><img src="assets/img/treasury.jpg" alt="Financial district towers" loading="lazy"></div>
+          <div class="stream-body">
+            <span class="stat-icon"><i class="fas fa-building-columns"></i></span>
+            <h3>Treasury &amp; credit</h3>
+            <p>Interest from treasury instruments and responsibly underwritten credit keeps core balances productive and liquid.</p>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- Grow -->
+    <section class="section container" id="grow">
+      <span class="section-tag reveal"><i class="fas fa-arrow-trend-up"></i> Grow with BrightVale</span>
+      <h2 class="section-title reveal">Three moves that build momentum</h2>
+      <div class="features-grid" style="grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));">
+        <div class="feature-card reveal">
+          <span class="stat-icon"><i class="fas fa-piggy-bank"></i></span>
+          <div class="feature-title">1. Put your balance to work</div>
+          <p>Move idle checking funds into savings or a fixed-term plan and watch small, consistent contributions compound.</p>
+        </div>
+        <div class="feature-card reveal">
+          <span class="stat-icon"><i class="fas fa-chart-pie"></i></span>
+          <div class="feature-title">2. Diversify across plans</div>
+          <p>Spread money across durations and risk levels — short, balanced, and long-horizon plans working together.</p>
+        </div>
+        <div class="feature-card reveal">
+          <span class="stat-icon"><i class="fas fa-rotate"></i></span>
+          <div class="feature-title">3. Reinvest what you earn</div>
+          <p>Maturity returns credit straight to your balance. Reinvest in one tap and keep the cycle going.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Reviews -->
+    <section class="section container" id="reviews">
+      <span class="section-tag reveal"><i class="fas fa-star"></i> Client reviews</span>
+      <h2 class="section-title reveal">People who bank brighter</h2>
+      <div class="review-grid">
+        <figure class="review-card reveal">
+          <div class="review-stars"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i></div>
+          <blockquote>"Transfers between my accounts are instant and the dashboard finally makes my finances easy to read. The savings plans are my favorite part."</blockquote>
+          <figcaption><span class="review-avatar" style="background:linear-gradient(135deg,#F5B301,#B45309);">AM</span><span><strong>Amara M.</strong><small>Small business owner</small></span></figcaption>
+        </figure>
+        <figure class="review-card reveal">
+          <div class="review-stars"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i></div>
+          <blockquote>"I moved my emergency fund into a fixed-term plan and the maturity payout landed exactly on schedule. Support answered me within the hour."</blockquote>
+          <figcaption><span class="review-avatar" style="background:linear-gradient(135deg,#6D28D9,#4C1D95);">DK</span><span><strong>Daniel K.</strong><small>Software engineer</small></span></figcaption>
+        </figure>
+        <figure class="review-card reveal">
+          <div class="review-stars"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star-half-stroke"></i></div>
+          <blockquote>"The card application took minutes and I could track it from the dashboard. Clean, professional, and refreshingly transparent."</blockquote>
+          <figcaption><span class="review-avatar" style="background:linear-gradient(135deg,#EC4899,#9D174D);">SR</span><span><strong>Sofia R.</strong><small>Marketing consultant</small></span></figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- Team -->
+    <section class="section container" id="team">
+      <span class="section-tag reveal"><i class="fas fa-users"></i> Our team</span>
+      <h2 class="section-title reveal">The people behind BrightVale</h2>
+      <p class="section-sub reveal">Banking, engineering, and risk expertise working as one team.</p>
+      <div class="team-grid">
+        <div class="team-card reveal">
+          <img class="team-avatar" src="assets/img/team-elena.jpg" alt="Elena Novak">
+          <h3>Elena Novak</h3>
+          <p class="team-role">Chief Executive</p>
+          <p class="team-bio">Former retail-banking lead with 15 years building customer-first financial products.</p>
+        </div>
+        <div class="team-card reveal">
+          <img class="team-avatar" src="assets/img/team-marcus.jpg" alt="Marcus Osei">
+          <h3>Marcus Osei</h3>
+          <p class="team-role">Chief Technology Officer</p>
+          <p class="team-bio">Payments infrastructure veteran; obsessed with uptime, security, and speed.</p>
+        </div>
+        <div class="team-card reveal">
+          <img class="team-avatar" src="assets/img/team-lina.jpg" alt="Lina Tran">
+          <h3>Lina Tran</h3>
+          <p class="team-role">Head of Risk</p>
+          <p class="team-bio">Designs the limits, checks, and reviews that keep every balance protected.</p>
+        </div>
+        <div class="team-card reveal">
+          <img class="team-avatar" src="assets/img/team-james.jpg" alt="James Park">
+          <h3>James Park</h3>
+          <p class="team-role">Head of Client Experience</p>
+          <p class="team-bio">Makes sure every question gets a fast, honest answer — every single day.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="section container">
+      <div class="cta-band reveal">
+        <h2>Ready to walk your bright path?</h2>
+        <p>Create your free BrightVale Finance account today and see your whole financial picture in one place.</p>
+        <a class="btn btn-lg" style="background:#fff;color:#4C1D95;" href="login.html#register">Join Us Now</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer" id="contact">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a class="brand" href="index.html" style="margin-bottom:12px;">
+            <span class="brand-logo-wrap"><img class="brand-logo brand-logo-light-img" src="assets/img/brightvale-logo.png" alt="BrightVale Finance"><img class="brand-logo brand-logo-dark" src="assets/img/brightvale-logo-light.png" alt="" aria-hidden="true"></span>
+          </a>
+          <p>Your Bright Path to Finance. Modern digital banking for everyday money, savings, investments, and loans.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Product</h4>
+          <a href="#banking">Banking</a>
+          <a href="#investing">Savings &amp; Investments</a>
+          <a href="#loans">Loans</a>
+          <a href="#security">Security</a>
+        </div>
+        <div class="footer-col">
+          <h4>Get started</h4>
+          <a href="login.html">Sign In</a>
+          <a href="login.html#register">Join Us Now</a>
+        </div>
+        <div class="footer-col">
+          <h4>Contact</h4>
+          <a href="mailto:support@brightvale.finance"><i class="fas fa-envelope" style="margin-right:6px;"></i>support@brightvale.finance</a>
+          <a href="privacy.html">Privacy Policy</a>
+          <a href="terms.html">Terms of Service</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; <span id="year"></span> BrightVale Finance. Banking services provided subject to applicable terms and conditions.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+    const navToggle = document.getElementById('navToggle');
+    const navLinks = document.getElementById('navLinks');
+    if (navToggle) {
+      navToggle.addEventListener('click', () => navLinks.classList.toggle('open'));
+      navLinks.querySelectorAll('a').forEach(a => a.addEventListener('click', () => navLinks.classList.remove('open')));
+    }
+  </script>
+</body>
+</html>

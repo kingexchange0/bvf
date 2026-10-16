@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>BrightVale Finance</title>
+  <link rel="icon" type="image/png" href="../assets/img/favicon.png">
+  <style>
+    body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #0F0E13; font-family: 'Segoe UI', system-ui, sans-serif; color: #fff; }
+    .loader { text-align: center; }
+    .spinner { width: 42px; height: 42px; border: 3px solid rgba(255,255,255,.15); border-top-color: #F5B301; border-radius: 50%; margin: 0 auto 16px; animation: spin 0.9s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    p { color: #A7A3B3; font-size: 14px; margin: 0; }
+  </style>
+</head>
+<body>
+  <div class="loader">
+    <div class="spinner"></div>
+    <p>Loading your dashboard…</p>
+  </div>
+  <script>
+    (function () {
+      var API = 'http://localhost:5000/api';
+      var token = null;
+      try { token = localStorage.getItem('token'); } catch (e) { /* no storage */ }
+      if (!token) { window.location.replace('../login.html'); return; }
+      fetch(API + '/auth/me', { headers: { Authorization: 'Bearer ' + token } })
+        .then(function (r) { return r.json(); })
+        .then(function (res) {
+          if (res && res.success && res.data) {
+            window.location.replace('dashboard.html');
+          } else {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.replace('../login.html');
+          }
+        })
+        .catch(function () { window.location.replace('../login.html'); });
+    })();
+  </script>
+</body>
+</html>

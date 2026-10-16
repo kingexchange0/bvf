@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Activity - BrightVale Finance</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script>window.PAGE_CONFIG = { role: 'user', active: 'transactions', title: 'Activity' };</script>
+  <script src="../js/main.js"></script>
+  <style>
+    .timeline { position: relative; padding-left: 28px; }
+    .timeline::before { content: ''; position: absolute; left: 17px; top: 8px; bottom: 8px; width: 2px; background: var(--border); border-radius: 2px; }
+    .timeline-item { position: relative; padding: 10px 0 10px 20px; }
+    .timeline-item .tl-dot {
+      position: absolute; left: -28px; top: 14px; width: 36px; height: 36px;
+      border-radius: 50%; background: var(--primary-soft); color: var(--primary);
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 14px; border: 3px solid var(--bg); flex-shrink: 0;
+    }
+    .timeline-item.tl-notify .tl-dot { background: var(--warning-soft); color: var(--warning); }
+    .timeline-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); box-shadow: var(--shadow-sm);
+      padding: 14px 16px; display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap;
+    }
+    .timeline-card .tl-body { flex: 1; min-width: 200px; }
+    .timeline-card .tl-text { font-size: 14px; color: var(--text); }
+    .timeline-card .tl-text b { font-weight: 700; }
+    .timeline-card .tl-time { font-size: 12px; color: var(--text-3); white-space: nowrap; }
+  </style>
+</head>
+<body>
+  <main class="main-content" id="main">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Activity</h1>
+        <p class="page-subtitle">A unified timeline of your transactions and notifications.</p>
+      </div>
+    </div>
+
+    <div id="timelineWrap"><div class="loading"><div class="spinner"></div></div></div>
+  </main>
+
+  <script>
+    const TYPE_LABELS = {
+      deposit: 'Deposited', withdraw: 'Withdrew', invest: 'Invested',
+      investment_return: 'Received investment return', loan: 'Took a loan', loan_repayment: 'Repaid loan',
+      referral_bonus: 'Earned referral bonus', transfer: 'Transferred'
+    };
+    const CREDIT_TYPES = ['deposit', 'investment_return', 'referral_bonus'];
+    const NOTIFY_ICONS = {
+      success: 'fa-circle-check', warning: 'fa-triangle-exclamation',
+      error: 'fa-circle-xmark', info: 'fa-circle-info'
+    };
+
+    function typeLabel(type) {
+      return TYPE_LABELS[type] || 'Transaction';
+    }
+
+    function collect(res, kind, mapFn) {
+      if (res && res.success && Array.isArray(res.data)) {
+        return res.data.map(mapFn).filter(Boolean);
+      }
+      return [];
+    }
+
+    async function init() {
+      const wrap = document.getElementById('timelineWrap');
+      const [tres, nres] = await Promise.all([
+        api.get('/transactions?limit=20').catch(() => null),
+        api.get('/notifications?limit=20').catch(() => null)
+      ]);
+
+      const items = [];
+      collect(tres, 'tx', t => ({
+        kind: 'tx', cls: '', icon: 'fa-arrow-right-arrow-left', date: t.createdAt,
+        html: `<b>${utils.escapeHtml(typeLabel(t.type))}</b> <span class="stat-change ${CREDIT_TYPES.includes(t.type) ? 'up' : 'down'}">${CREDIT_TYPES.includes(t.type) ? '+' : '&minus;'} ${utils.formatCurrency(t.amount)}</span>${t.description ? ` &middot; ${utils.escapeHtml(t.description)}` : ''}`
+      })).forEach(i => items.push(i));
+      collect(nres, 'notify', n => ({
+        kind: 'notify', cls: 'tl-notify',
+        icon: NOTIFY_ICONS[n.type] || 'fa-bell', date: n.createdAt,
+        html: `<b>${utils.escapeHtml(n.title || 'Notification')}</b>${n.message ? ` &middot; ${utils.escapeHtml(n.message)}` : ''}`
+      })).forEach(i => items.push(i));
+
+      items.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      if (!items.length) {
+        wrap.innerHTML = `
+          <div class="empty-state" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);">
+            <div class="empty-icon"><i class="fas fa-clock-rotate-left"></i></div>
+            <div class="empty-title">No activity yet</div>
+            <div class="empty-hint">Your recent transactions and notifications will appear here.</div>
+            <a href="dashboard.html" class="btn btn-primary btn-sm mt-8">Go to dashboard</a>
+          </div>`;
+        return;
+      }
+
+      wrap.innerHTML = '<div class="timeline">' + items.map(i => `
+        <div class="timeline-item ${i.cls}">
+          <span class="tl-dot"><i class="fas ${i.icon}"></i></span>
+          <div class="timeline-card">
+            <div class="tl-body"><div class="tl-text">${i.html}</div></div>
+            <span class="tl-time">${utils.timeAgo(i.date)}</span>
+          </div>
+        </div>`).join('') + '</div>';
+    }
+
+    init();
+  </script>
+</body>
+</html>

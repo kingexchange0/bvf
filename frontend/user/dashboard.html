@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - BrightVale Finance</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script>window.PAGE_CONFIG = { role: 'user', active: 'dashboard', title: 'Dashboard' };</script>
+  <script src="../js/main.js"></script>
+  <style>
+    .asset-row { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--border-soft); border-radius: var(--radius-sm); background: var(--surface-2); }
+    .asset-row .asset-main { flex: 1; min-width: 0; }
+    .asset-row .asset-name { font-weight: 700; font-size: 14px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .asset-row .asset-sub { font-size: 12px; color: var(--text-3); }
+    .mini-progress { height: 6px; border-radius: 999px; background: var(--border-soft); overflow: hidden; margin-top: 8px; }
+    .mini-progress > span { display: block; height: 100%; border-radius: 999px; background: var(--gradient); }
+
+    .acct-card { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); padding: 20px; display: flex; flex-direction: column; gap: 8px; }
+    .acct-card .acct-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-3); }
+    .acct-card .acct-value { font-family: var(--font-display); font-size: 26px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
+    .acct-card .acct-icon { width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+    .total-hero { display: flex; align-items: center; justify-content: space-between; gap: 16px; background: linear-gradient(135deg, var(--primary) 0%, #1D4ED8 100%); border-radius: var(--radius); padding: 24px; color: #fff; flex-wrap: wrap; }
+    .total-hero .label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; opacity: .85; }
+    .total-hero .value { font-family: var(--font-display); font-size: 34px; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .quick-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+    .quick-action { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 14px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); text-decoration: none; transition: all .15s ease; }
+    .quick-action:hover { border-color: var(--primary); }
+    .quick-action i { font-size: 18px; color: var(--primary); }
+    .quick-action span { font-size: 12px; font-weight: 600; color: var(--text); }
+    .eye-btn { background: rgba(255,255,255,.16); border: none; color: #fff; width: 38px; height: 38px; border-radius: 10px; cursor: pointer; font-size: 15px; }
+    @media (max-width: 640px) {
+      .grid-2 { grid-template-columns: 1fr; }
+      .total-hero .value { font-size: 26px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="main-content" id="main">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title" id="greeting">Dashboard</h1>
+        <p class="page-subtitle" id="greetingSub">Here is an overview of your account.</p>
+      </div>
+      <div class="flex gap-8" id="kycWrap" style="align-items:center;"></div>
+    </div>
+
+    <div class="kyc-banner" id="kycBanner" style="display:none;margin-bottom:16px;background:var(--warning-soft,#FFFBEB);border:1px solid var(--warning,#D97706);color:var(--warning,#D97706);border-radius:var(--radius);padding:14px 18px;font-size:13.5px;line-height:1.55;display:none;align-items:center;gap:12px;"><i class="fas fa-id-card"></i>
+      <span>Verify your identity to unlock transfers, withdrawals, investing, loans and cards. <a href="kyc.html" style="color:inherit;font-weight:700;text-decoration:underline;white-space:nowrap;">Verify now</a></span>
+    </div>
+
+    <div class="total-hero mb-16 reveal">
+      <div>
+        <div class="label">Total Balance</div>
+        <div class="value" id="totalBalance">&mdash;</div>
+        <div class="text-small" style="opacity:.8;">Checking + Savings + Active Investments</div>
+      </div>
+      <button class="eye-btn" id="toggleBalances" title="Show / hide balances"><i class="fas fa-eye" id="eyeIcon"></i></button>
+    </div>
+
+    <div class="stat-grid mb-16">
+      <div class="stat-card reveal">
+        <div class="flex-between">
+          <span class="stat-label">Checking</span>
+          <span class="stat-icon"><i class="fas fa-wallet"></i></span>
+        </div>
+        <div class="stat-value" id="statChecking">&mdash;</div>
+        <div class="text-small text-muted">Available to spend</div>
+      </div>
+      <div class="stat-card reveal">
+        <div class="flex-between">
+          <span class="stat-label">Savings</span>
+          <span class="stat-icon"><i class="fas fa-piggy-bank"></i></span>
+        </div>
+        <div class="stat-value" id="statSavings">&mdash;</div>
+        <div class="text-small text-muted">Grow your money</div>
+      </div>
+      <div class="stat-card reveal">
+        <div class="flex-between">
+          <span class="stat-label">Invested (Active)</span>
+          <span class="stat-icon"><i class="fas fa-chart-line"></i></span>
+        </div>
+        <div class="stat-value" id="statInvested">&mdash;</div>
+        <div class="text-small text-muted" id="statInvestedCount">&mdash;</div>
+      </div>
+      <div class="stat-card reveal">
+        <div class="flex-between">
+          <span class="stat-label">Pending Requests</span>
+          <span class="stat-icon"><i class="fas fa-hourglass-half"></i></span>
+        </div>
+        <div class="stat-value" id="statPending">&mdash;</div>
+        <div class="text-small text-muted" id="statPendingSub">Deposits &middot; Withdrawals</div>
+      </div>
+    </div>
+
+    <div class="card mb-16 reveal">
+      <div class="card-title mb-16"><i class="fas fa-bolt"></i> Quick Actions</div>
+      <div class="quick-grid">
+        <a class="quick-action" href="deposit.html"><i class="fas fa-download"></i><span>Deposit</span></a>
+        <a class="quick-action" href="withdraw.html"><i class="fas fa-upload"></i><span>Withdraw</span></a>
+        <a class="quick-action" href="transfers.html"><i class="fas fa-arrow-right-arrow-left"></i><span>Transfer</span></a>
+        <a class="quick-action" href="invest.html"><i class="fas fa-chart-line"></i><span>Invest</span></a>
+        <a class="quick-action" href="loans.html"><i class="fas fa-hand-holding-dollar"></i><span>Loans</span></a>
+        <a class="quick-action" href="cards.html"><i class="fas fa-credit-card"></i><span>Cards</span></a>
+      </div>
+    </div>
+
+    <div class="grid-2 mb-16" style="align-items:start;">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Recent Transactions</div>
+          <a href="transactions.html" class="btn btn-ghost btn-sm">View all</a>
+        </div>
+        <div id="recentTxWrap"><div class="loading"><div class="spinner"></div></div></div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Active Investments</div>
+          <a href="invest.html" class="btn btn-ghost btn-sm">Invest</a>
+        </div>
+        <div id="investWrap" class="flex gap-12" style="flex-direction:column;"><div class="loading"><div class="spinner"></div></div></div>
+      </div>
+    </div>
+
+    <div class="card reveal">
+      <div class="card-header">
+        <div class="card-title"><i class="fas fa-bell"></i> Notifications</div>
+        <a href="notifications.html" class="btn btn-ghost btn-sm">View all</a>
+      </div>
+      <div id="notifWrap"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+  </main>
+
+  <script>
+    const TX_TYPE_LABELS = {
+      deposit: 'Deposit', withdraw: 'Withdrawal', invest: 'Investment',
+      investment_return: 'Investment Return', loan: 'Loan', loan_repayment: 'Loan Repayment',
+      referral_bonus: 'Referral Bonus', transfer: 'Transfer'
+    };
+    const TX_CREDIT_TYPES = ['deposit', 'investment_return', 'referral_bonus'];
+    const STATUS_BADGE = {
+      completed: 'badge-success', approved: 'badge-success', active: 'badge-info',
+      pending: 'badge-warning', processing: 'badge-info',
+      declined: 'badge-danger', failed: 'badge-danger', cancelled: 'badge-danger'
+    };
+
+    const BAL_VISIBILITY_KEY = 'bv-balance-visible';
+    let balances = { checking: 0, savings: 0, invested: 0 };
+    let balanceVisible = true;
+    try { balanceVisible = localStorage.getItem(BAL_VISIBILITY_KEY) !== '0'; } catch (e) {}
+
+    function statusBadge(status) {
+      const cls = STATUS_BADGE[status] || 'badge-muted';
+      return `<span class="badge ${cls}">${utils.escapeHtml(status || 'unknown')}</span>`;
+    }
+
+    function typeLabel(type) {
+      return TX_TYPE_LABELS[type] || (type ? type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : 'Transaction');
+    }
+
+    function maskMoney(v) {
+      return balanceVisible ? utils.formatCurrency(v) : '$ •••••';
+    }
+
+    function renderBalances() {
+      document.getElementById('totalBalance').textContent = maskMoney(balances.checking + balances.savings + balances.invested);
+      document.getElementById('statChecking').textContent = maskMoney(balances.checking);
+      document.getElementById('statSavings').textContent = maskMoney(balances.savings);
+      document.getElementById('statInvested').textContent = maskMoney(balances.invested);
+      document.getElementById('eyeIcon').className = balanceVisible ? 'fas fa-eye' : 'fas fa-eye-slash';
+    }
+
+    document.getElementById('toggleBalances').addEventListener('click', function () {
+      balanceVisible = !balanceVisible;
+      try { localStorage.setItem(BAL_VISIBILITY_KEY, balanceVisible ? '1' : '0'); } catch (e) {}
+      renderBalances();
+    });
+
+    function setGreeting() {
+      const h = new Date().getHours();
+      const part = h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening';
+      const user = auth.getUser();
+      const name = user && user.name ? user.name.trim().split(' ')[0] : 'there';
+      document.getElementById('greeting').textContent = `Good ${part}, ${utils.escapeHtml(name)}`;
+    }
+
+    function renderKyc(kycStatus) {
+      const wrap = document.getElementById('kycWrap');
+      const banner = document.getElementById('kycBanner');
+      const verified = kycStatus === 'verified' || kycStatus === 'approved';
+      if (banner) banner.style.display = verified ? 'none' : 'flex';
+      if (verified) {
+        wrap.innerHTML = '<span class="badge badge-success"><i class="fas fa-circle-check"></i> Verified</span>';
+        return;
+      }
+      if (kycStatus === 'pending' || kycStatus === 'processing') {
+        wrap.innerHTML = '<span class="badge badge-warning"><i class="fas fa-clock"></i> Verification pending</span>';
+        return;
+      }
+      wrap.innerHTML = '<span class="badge badge-danger"><i class="fas fa-triangle-exclamation"></i> Verification required</span> ' +
+        '<a href="kyc.html" class="btn btn-ghost btn-sm"><i class="fas fa-id-card"></i> Verify now</a>';
+    }
+
+    function renderRecentTx(list) {
+      const wrap = document.getElementById('recentTxWrap');
+      const txs = list || [];
+      if (!txs.length) {
+        wrap.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon"><i class="fas fa-arrow-right-arrow-left"></i></div>
+            <div class="empty-title">No transactions yet</div>
+            <div class="empty-hint">Your most recent transactions will show up here.</div>
+          </div>`;
+        return;
+      }
+      const rows = txs.slice(0, 8).map(t => {
+        const credit = TX_CREDIT_TYPES.includes(t.type) || (t.amount > 0 && t.type === 'transfer' && t.direction === 'in');
+        const sign = credit ? '+' : '&minus;';
+        const color = credit ? 'up' : 'down';
+        return `
+          <tr>
+            <td>${utils.escapeHtml(typeLabel(t.type))}</td>
+            <td><span class="stat-change ${color}">${sign} ${maskMoney(Math.abs(t.amount))}</span></td>
+            <td>${utils.formatDate(t.createdAt)}</td>
+            <td>${statusBadge(t.status)}</td>
+          </tr>`;
+      }).join('');
+      wrap.innerHTML = `
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Type</th><th>Amount</th><th>Date</th><th>Status</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+    }
+
+    function renderInvestments(investments) {
+      const wrap = document.getElementById('investWrap');
+      const active = (investments || []).filter(i => i.status === 'active');
+      if (!active.length) {
+        wrap.innerHTML = `
+          <div class="empty-state" style="padding:16px 0;">
+            <div class="empty-icon"><i class="fas fa-chart-line"></i></div>
+            <div class="empty-title">No active investments</div>
+            <div class="empty-hint">Put your money to work with one of our investment plans.</div>
+            <a href="invest.html" class="btn btn-primary btn-sm mt-8">Browse plans</a>
+          </div>`;
+        return;
+      }
+      wrap.innerHTML = active.map(inv => {
+        const planName = (inv.planId && inv.planId.name) || inv.planName || 'Investment Plan';
+        const start = inv.startDate ? new Date(inv.startDate).getTime() : new Date(inv.createdAt).getTime();
+        const end = inv.endDate ? new Date(inv.endDate).getTime() : start;
+        const pct = end > start ? Math.min(100, Math.max(0, Math.round(((Date.now() - start) / (end - start)) * 100))) : 100;
+        return `
+          <div class="asset-row">
+            <span class="stat-icon" style="width:44px;height:44px;"><i class="fas fa-chart-line"></i></span>
+            <div class="asset-main">
+              <div class="asset-name">${utils.escapeHtml(planName)}</div>
+              <div class="asset-sub">${maskMoney(inv.amount)} invested &middot; matures ${utils.formatDate(inv.endDate)}</div>
+              <div class="mini-progress"><span style="width:${pct}%"></span></div>
+            </div>
+            <div style="text-align:right;flex-shrink:0;">
+              <div style="font-weight:700;font-size:14px;color:var(--text);">${maskMoney(inv.expectedReturns)}</div>
+              <div class="asset-sub">expected</div>
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    function renderNotifications(list) {
+      const wrap = document.getElementById('notifWrap');
+      const items = list || [];
+      if (!items.length) {
+        wrap.innerHTML = `
+          <div class="empty-state" style="padding:16px 0;">
+            <div class="empty-icon"><i class="fas fa-bell"></i></div>
+            <div class="empty-hint">You are all caught up — no unread notifications.</div>
+          </div>`;
+        return;
+      }
+      wrap.innerHTML = items.slice(0, 5).map(n => `
+        <div class="flex gap-8" style="align-items:flex-start;padding:10px 0;border-bottom:1px dashed var(--border);">
+          <span class="stat-icon" style="width:34px;height:34px;"><i class="fas fa-bell"></i></span>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:600;font-size:13px;color:var(--text);">${utils.escapeHtml(n.title || 'Notification')}</div>
+            <div class="text-small text-muted">${utils.escapeHtml(n.message || '')}</div>
+          </div>
+          <span class="text-small text-muted" style="white-space:nowrap;">${utils.timeAgo(n.createdAt)}</span>
+        </div>`).join('');
+    }
+
+    async function init() {
+      setGreeting();
+      renderBalances();
+
+      // Core dashboard data
+      try {
+        const res = await api.get('/user/dashboard');
+        if (res && res.success && res.data) {
+          const d = res.data;
+          balances.checking = d.balance || 0;
+          balances.invested = d.totalInvested || 0;
+          renderBalances();
+          renderKyc(d.kycStatus);
+          renderInvestments(d.activeInvestments || []);
+          if (Array.isArray(d.recentTransactions)) renderRecentTx(d.recentTransactions);
+        } else {
+          toast.error((res && res.message) || 'Failed to load dashboard');
+        }
+      } catch (e) {
+        toast.error('Failed to load dashboard');
+      }
+
+      // KYC banner fallback (in case dashboard payload omitted kycStatus)
+      try {
+        const kycRes = await api.get('/kyc');
+        const kycStatus = kycRes && kycRes.data && (kycRes.data.kycStatus || kycRes.data.status);
+        if (kycStatus) renderKyc(kycStatus);
+      } catch (e) { /* keep dashboard-derived state */ }
+
+      // Savings balance + pending counts
+      try {
+        const res = await api.get('/user/profile');
+        if (res && res.success && res.data) {
+          balances.savings = res.data.savingsBalance || 0;
+          renderBalances();
+        }
+      } catch (e) { /* savings stays 0 */ }
+
+      try {
+        const [depRes, wdRes] = await Promise.all([
+          api.get('/deposits?limit=50').catch(() => null),
+          api.get('/withdrawals?limit=50').catch(() => null)
+        ]);
+        const pendingDeposits = (depRes && depRes.success ? (depRes.data || []) : []).filter(d => d.status === 'pending').length;
+        const pendingWithdrawals = (wdRes && wdRes.success ? (wdRes.data || []) : []).filter(w => w.status === 'pending').length;
+        document.getElementById('statPending').textContent = String(pendingDeposits + pendingWithdrawals);
+        document.getElementById('statPendingSub').textContent = `Deposits: ${pendingDeposits} · Withdrawals: ${pendingWithdrawals}`;
+      } catch (e) { /* counts stay hidden */ }
+
+      // Transactions (fallback if dashboard didn't include them)
+      const txWrap = document.getElementById('recentTxWrap');
+      if (!txWrap.dataset.loaded) {
+        try {
+          const res = await api.get('/transactions?limit=8');
+          if (res && res.success) { renderRecentTx(res.data || []); txWrap.dataset.loaded = '1'; }
+          else if (!txWrap.dataset.loaded) renderRecentTx([]);
+        } catch (e) { renderRecentTx([]); }
+        txWrap.dataset.loaded = '1';
+      }
+
+      // Unread notifications
+      try {
+        const res = await api.get('/notifications?unreadOnly=true');
+        if (res && res.success) renderNotifications(res.data || []);
+        else renderNotifications([]);
+      } catch (e) { renderNotifications([]); }
+    }
+
+    init();
+  </script>
+</body>
+</html>

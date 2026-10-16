@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transactions - BrightVale Finance Admin</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script>window.PAGE_CONFIG = { role: 'admin', active: 'transactions', title: 'Transactions' };</script>
+  <script src="../js/main.js"></script>
+</head>
+<body>
+  <main class="main-content" id="main">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Transactions</h1>
+        <p class="page-subtitle">All balance movements across the platform.</p>
+      </div>
+    </div>
+
+    <div class="stat-grid" id="txStats"></div>
+
+    <div class="card mt-16">
+      <div class="filter-bar mb-16">
+        <select class="select" id="typeFilter" style="width: auto;">
+          <option value="">All types</option>
+          <option value="deposit">Deposit</option>
+          <option value="withdraw">Withdraw</option>
+          <option value="invest">Invest</option>
+          <option value="investment_return">Investment return</option>
+          <option value="loan">Loan</option>
+          <option value="loan_repayment">Loan repayment</option>
+          <option value="referral_bonus">Referral bonus</option>
+          <option value="transfer">Transfer</option>
+        </select>
+        <select class="select" id="statusFilter" style="width: auto;">
+          <option value="">All statuses</option>
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="declined">Declined</option>
+          <option value="completed">Completed</option>
+        </select>
+        <select class="select" id="rangeFilter" style="width: auto;">
+          <option value="">All time</option>
+          <option value="today">Today</option>
+          <option value="week">Last 7 days</option>
+          <option value="month">Last 30 days</option>
+        </select>
+        <button class="btn btn-primary" id="applyBtn"><i class="fas fa-filter"></i> Apply</button>
+      </div>
+
+      <style>
+        .tx-hidden-row { opacity: .55; }
+        .tx-hidden-row td { background: var(--surface-2); }
+      </style>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr><th>ID</th><th>User</th><th>Type</th><th>Description</th><th>Amount</th><th>Status</th><th>Date</th><th>Visibility</th></tr>
+          </thead>
+          <tbody id="txBody"></tbody>
+        </table>
+      </div>
+      <div class="table-footer">
+        <span id="txCount"></span>
+        <div id="txPagination"></div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    if (!auth.requireAdmin()) throw new Error('Admin access required');
+
+    const esc = utils.escapeHtml;
+    const state = { page: 1, limit: 20, type: '', status: '', dateRange: '' };
+
+    const badgeClass = (s) => {
+      s = (s || '').toLowerCase();
+      if (['approved', 'completed', 'active', 'paid', 'verified', 'available', 'sold'].includes(s)) return 'badge-success';
+      if (['pending', 'processing'].includes(s)) return 'badge-warning';
+      if (['declined', 'rejected', 'suspended', 'cancelled', 'canceled', 'failed', 'defaulted'].includes(s)) return 'badge-danger';
+      if (['draft', 'unavailable', 'inactive', 'not_submitted'].includes(s)) return 'badge-muted';
+      if (s === 'featured') return 'badge-primary';
+      return 'badge-muted';
+    };
+    const badge = (s) => `<span class="badge ${badgeClass(s)}">${esc(s ? String(s).replace(/_/g, ' ') : 'N/A')}</span>`;
+    const typeLabel = (t) => esc(t ? String(t).replace(/_/g, ' ') : 'N/A');
+
+    const statChip = (label, value, icon) => `
+      <div class="stat-card">
+        <div class="flex-between">
+          <span class="stat-icon"><i class="fas ${icon}"></i></span>
+        </div>
+        <div>
+          <div class="stat-label">${esc(label)}</div>
+          <div class="stat-value">${value}</div>
+        </div>
+      </div>`;
+
+    async function loadTransactions() {
+      loading.show('txBody');
+      try {
+        const params = new URLSearchParams({ page: state.page, limit: state.limit });
+        if (state.type) params.set('type', state.type);
+        if (state.status) params.set('status', state.status);
+        if (state.dateRange) params.set('dateRange', state.dateRange);
+        const res = await api.get(`/admin/transactions?${params.toString()}`);
+        if (!res.success) {
+          toast.error(res.message || 'Failed to load transactions');
+          return;
+        }
+        const stats = res.stats || {};
+        document.getElementById('txStats').innerHTML =
+          statChip('Total Transactions', Number(stats.totalCount || 0).toLocaleString(), 'fa-arrow-right-arrow-left') +
+          statChip('Pending', Number(stats.pendingCount || 0).toLocaleString(), 'fa-clock') +
+          statChip('Total Volume', utils.formatCurrency(stats.totalVolume), 'fa-coins');
+
+        const txs = res.data || [];
+        document.getElementById('txBody').innerHTML = txs.length
+          ? txs.map(t => `
+              <tr class="${t.hidden ? 'tx-hidden-row' : ''}">
+                <td class="mono text-muted">#${esc(String(t._id).slice(-6))}</td>
+                <td>
+                  ${esc((t.userId && t.userId.name) || 'Deleted user')}
+                  <div class="text-small text-muted">${esc((t.userId && t.userId.email) || '')}</div>
+                </td>
+                <td><span class="badge badge-info">${typeLabel(t.type)}</span></td>
+                <td>${esc(t.description || '—')}</td>
+                <td>${utils.formatCurrency(t.amount)}</td>
+                <td>${badge(t.status)}</td>
+                <td>${utils.formatDateTime(t.createdAt)}</td>
+                <td>
+                  ${t.hidden ? '<span class="badge badge-muted">Hidden</span> ' : ''}
+                  <button class="btn btn-ghost btn-xs" onclick="toggleHide('${esc(String(t._id))}', ${t.hidden ? 'false' : 'true'}, this)">
+                    <i class="fas ${t.hidden ? 'fa-eye' : 'fa-eye-slash'}"></i> ${t.hidden ? 'Show' : 'Hide'}
+                  </button>
+                </td>
+              </tr>`).join('')
+          : `<tr><td colspan="8"><div class="empty-state"><div class="empty-icon"><i class="fas fa-arrow-right-arrow-left"></i></div><div class="empty-title">No transactions found</div><div class="empty-hint">Try adjusting your filters.</div></div></td></tr>`;
+
+        const p = res.pagination || {};
+        document.getElementById('txCount').textContent = `${p.total || txs.length} transaction(s)`;
+        pagination.render('txPagination', Number(p.currentPage) || 1, Number(p.pages) || 1, 'goToPage');
+      } catch (error) {
+        console.error(error);
+        toast.error('Failed to load transactions');
+      } finally {
+        loading.hide('txBody');
+      }
+    }
+
+    async function toggleHide(id, hide, btn) {
+      btn.disabled = true;
+      const orig = btn.innerHTML;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+      try {
+        const res = await api.put(`/transactions/admin/${id}/${hide ? 'hide' : 'show'}`);
+        if (res && res.success) {
+          toast.success(hide ? 'Transaction hidden from user' : 'Transaction visible to user');
+          loadTransactions();
+          return;
+        }
+        toast.error((res && res.message) || 'Update failed');
+      } catch (e) {
+        toast.error('Update failed');
+      }
+      btn.disabled = false;
+      btn.innerHTML = orig;
+    }
+
+    function goToPage(page) {
+      state.page = page;
+      loadTransactions();
+    }
+
+    document.getElementById('applyBtn').addEventListener('click', () => {
+      state.type = document.getElementById('typeFilter').value;
+      state.status = document.getElementById('statusFilter').value;
+      state.dateRange = document.getElementById('rangeFilter').value;
+      state.page = 1;
+      loadTransactions();
+    });
+
+    loadTransactions();
+  </script>
+</body>
+</html>

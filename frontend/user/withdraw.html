@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Withdraw Funds - BrightVale Finance</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script>window.PAGE_CONFIG = { role: 'user', active: 'withdraw', title: 'Withdraw Funds' };</script>
+  <script src="../js/main.js"></script>
+  <style>
+    .wd-grid { display: grid; grid-template-columns: 1.25fr .75fr; gap: 20px; align-items: start; }
+    .balance-hero { display: flex; align-items: center; justify-content: space-between; gap: 16px; background: linear-gradient(135deg, var(--primary) 0%, #1D4ED8 100%); border-radius: var(--radius); padding: 22px 24px; color: #fff; }
+    .balance-hero .label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; opacity: .85; }
+    .balance-hero .value { font-family: var(--font-display); font-size: 30px; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .balance-hero .icon { width: 46px; height: 46px; border-radius: 12px; background: rgba(255,255,255,.16); display: flex; align-items: center; justify-content: center; font-size: 19px; }
+    .method-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .method-card { border: 2px solid var(--border); border-radius: var(--radius-sm); padding: 16px; text-align: center; cursor: pointer; background: var(--surface-2); transition: all .15s ease; }
+    .method-card i { font-size: 22px; color: var(--text-3); display: block; margin-bottom: 8px; }
+    .method-card b { font-size: 14px; color: var(--text); display: block; }
+    .method-card span { font-size: 11px; color: var(--text-3); }
+    .method-card.active { border-color: var(--primary); background: var(--primary-soft); }
+    .method-card.active i { color: var(--primary); }
+    .info-item { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; }
+    .info-item + .info-item { border-top: 1px dashed var(--border); }
+    .info-icon { width: 34px; height: 34px; border-radius: 10px; background: var(--primary-soft); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+    .info-item b { display: block; font-size: 13px; color: var(--text); }
+    .info-item span { font-size: 12px; color: var(--text-2); line-height: 1.5; }
+    .wd-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 0; }
+    .wd-item + .wd-item { border-top: 1px dashed var(--border); }
+    .wd-item .amt { font-family: var(--font-display); font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+    .wd-item .when { font-size: 11px; color: var(--text-3); }
+    @media (max-width: 992px) { .wd-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <main class="main-content" id="main">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Withdraw Funds</h1>
+        <p class="page-subtitle">Withdraw your balance to a BTC wallet or bank account. Requests are reviewed before processing.</p>
+      </div>
+    </div>
+
+    <div class="balance-hero mb-24 reveal">
+      <div>
+        <div class="label">Available Balance</div>
+        <div class="value" id="balanceValue">$0.00</div>
+      </div>
+      <div class="icon"><i class="fas fa-wallet"></i></div>
+    </div>
+
+    <div class="wd-grid">
+      <div class="card reveal">
+        <div class="card-title mb-16"><i class="fas fa-upload"></i> Request Withdrawal</div>
+        <form id="withdrawForm">
+          <div class="form-group">
+            <label class="form-label">Withdrawal Method</label>
+            <div class="method-row" id="methodRow">
+              <div class="method-card active" data-method="btc">
+                <i class="fab fa-bitcoin"></i>
+                <b>Bitcoin (BTC)</b>
+                <span>Send to your BTC wallet</span>
+              </div>
+              <div class="method-card" data-method="bank">
+                <i class="fas fa-building-columns"></i>
+                <b>Bank Transfer</b>
+                <span>Direct to your bank account</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Amount (USD) *</label>
+            <input type="number" class="input" id="amount" min="1" step="0.01" placeholder="Enter amount" required>
+            <div class="form-hint mt-8" id="minWithdrawHint">Minimum withdrawal: loading...</div>
+          </div>
+
+          <div id="btcFields">
+            <div class="form-group">
+              <label class="form-label">BTC Wallet Address *</label>
+              <input type="text" class="input" id="walletAddress" placeholder="Enter your BTC wallet address">
+              <div class="form-hint mt-8">Double-check the address — BTC transfers cannot be reversed.</div>
+            </div>
+          </div>
+
+          <div id="bankFields" style="display:none;">
+            <div class="form-group">
+              <label class="form-label">Bank Name *</label>
+              <input type="text" class="input" id="bankName" placeholder="e.g. Chase Bank">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Account Number *</label>
+              <input type="text" class="input" id="accountNumber" placeholder="Your account number">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Account Name *</label>
+              <input type="text" class="input" id="accountName" placeholder="Name on the account">
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-block" id="submitBtn"><i class="fas fa-paper-plane"></i> Submit Withdrawal Request</button>
+        </form>
+      </div>
+
+      <div>
+        <div class="card mb-16 reveal">
+          <div class="card-title mb-8"><i class="fas fa-circle-info"></i> Withdrawal Information</div>
+          <div class="info-item"><div class="info-icon"><i class="fas fa-clock"></i></div><div><b>Processing Time</b><span>24–48 hours for approval, then instant payout.</span></div></div>
+          <div class="info-item"><div class="info-icon"><i class="fas fa-percent"></i></div><div><b>Fees</b><span>No BrightVale Finance withdrawal fees. Network or bank charges may apply.</span></div></div>
+          <div class="info-item"><div class="info-icon"><i class="fas fa-shield-halved"></i></div><div><b>Security</b><span>All withdrawals are verified before funds leave your account.</span></div></div>
+        </div>
+
+        <div class="card reveal">
+          <div class="card-header">
+            <div class="card-title">Recent Withdrawals</div>
+            <a href="transactions.html" class="btn btn-ghost btn-xs">View all</a>
+          </div>
+          <div id="recentWithdrawals"><div class="text-small text-muted">Loading...</div></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    if (!auth.isLoggedIn()) {
+      window.location.href = '../login.html';
+    }
+
+    let method = 'btc';
+    let minimumWithdrawal = 0;
+    const STATUS_BADGE = { pending: 'badge-warning', approved: 'badge-success', completed: 'badge-success', declined: 'badge-danger' };
+
+    async function loadMinWithdrawal() {
+      try {
+        const res = await api.get('/settings');
+        if (res && res.success && res.data && Number(res.data.minimumWithdrawal) > 0) {
+          minimumWithdrawal = Number(res.data.minimumWithdrawal);
+          document.getElementById('minWithdrawHint').textContent = 'Minimum withdrawal: ' + utils.formatCurrency(minimumWithdrawal);
+          document.getElementById('amount').min = minimumWithdrawal;
+        } else {
+          document.getElementById('minWithdrawHint').textContent = 'Enter the amount you wish to withdraw.';
+        }
+      } catch (e) {
+        document.getElementById('minWithdrawHint').textContent = 'Enter the amount you wish to withdraw.';
+      }
+    }
+
+    async function loadBalance() {
+      try {
+        const res = await api.get('/user/profile');
+        if (res && res.success && res.data) {
+          document.getElementById('balanceValue').textContent = utils.formatCurrency(res.data.balanceUSD || 0);
+        }
+      } catch (e) { /* keep default */ }
+    }
+
+    document.getElementById('methodRow').addEventListener('click', function (e) {
+      const card = e.target.closest('.method-card');
+      if (!card) return;
+      document.querySelectorAll('.method-card').forEach(function (c) { c.classList.remove('active'); });
+      card.classList.add('active');
+      method = card.dataset.method;
+      document.getElementById('btcFields').style.display = method === 'btc' ? '' : 'none';
+      document.getElementById('bankFields').style.display = method === 'bank' ? '' : 'none';
+    });
+
+    document.getElementById('withdrawForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const amount = document.getElementById('amount').value;
+      if (!amount || Number(amount) <= 0) { toast.error('Enter a valid amount'); return; }
+      if (minimumWithdrawal > 0 && Number(amount) < minimumWithdrawal) {
+        toast.error('Minimum withdrawal is ' + utils.formatCurrency(minimumWithdrawal));
+        return;
+      }
+
+      const payload = { type: method, amount: Number(amount) };
+      if (method === 'btc') {
+        const addr = document.getElementById('walletAddress').value.trim();
+        if (!addr) { toast.error('Enter your BTC wallet address'); return; }
+        payload.walletAddress = addr;
+      } else {
+        const bankName = document.getElementById('bankName').value.trim();
+        const accountNumber = document.getElementById('accountNumber').value.trim();
+        const accountName = document.getElementById('accountName').value.trim();
+        if (!bankName || !accountNumber || !accountName) { toast.error('Fill in all bank details'); return; }
+        payload.bankDetails = { bankName: bankName, accountNumber: accountNumber, accountName: accountName };
+      }
+
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+      try {
+        const res = await api.post('/withdrawals', payload);
+        if (res && res.success) {
+          toast.success('Withdrawal request submitted — pending approval');
+          document.getElementById('withdrawForm').reset();
+          loadRecent();
+          loadBalance();
+        } else if (kycGate.isKycError(res)) {
+          kycGate.show(res.message);
+        } else {
+          toast.error((res && res.message) || 'Withdrawal failed');
+        }
+      } catch (err) {
+        toast.error('Withdrawal failed. Please try again.');
+      }
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Withdrawal Request';
+    });
+
+    async function loadRecent() {
+      const wrap = document.getElementById('recentWithdrawals');
+      try {
+        const res = await api.get('/withdrawals?limit=6');
+        if (!res || !res.success) { wrap.innerHTML = '<div class="text-small text-muted">Could not load withdrawals.</div>'; return; }
+        const list = res.data || [];
+        if (!list.length) {
+          wrap.innerHTML = '<div class="empty-state" style="padding:20px 0;"><div class="empty-icon"><i class="fas fa-inbox"></i></div><div class="empty-hint">No withdrawals yet.</div></div>';
+          return;
+        }
+        wrap.innerHTML = list.map(function (w) {
+          const when = w.createdAt ? new Date(w.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+          const via = w.type === 'btc' ? 'BTC' : 'Bank';
+          return '<div class="wd-item">' +
+            '<div><div class="amt">' + utils.formatCurrency(w.amount) + ' <span class="badge badge-muted">' + via + '</span></div><div class="when">' + when + '</div></div>' +
+            '<span class="badge ' + (STATUS_BADGE[w.status] || 'badge-muted') + '">' + utils.escapeHtml(w.status || 'pending') + '</span>' +
+          '</div>';
+        }).join('');
+      } catch (e) {
+        wrap.innerHTML = '<div class="text-small text-muted">Could not load withdrawals.</div>';
+      }
+    }
+
+    loadBalance();
+    loadMinWithdrawal();
+    loadRecent();
+  </script>
+</body>
+</html>

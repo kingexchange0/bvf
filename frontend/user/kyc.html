@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KYC Verification - BrightVale Finance</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script>window.PAGE_CONFIG = { role: 'user', active: 'kyc', title: 'KYC Verification' };</script>
+  <script src="../js/main.js"></script>
+  <style>
+    .kyc-grid { display: grid; grid-template-columns: 1.25fr .75fr; gap: 20px; align-items: start; }
+    .stepper { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+    .step { flex: 1; min-width: 110px; border: 2px solid var(--border); border-radius: var(--radius-sm); padding: 12px; cursor: pointer; background: var(--surface-2); transition: all .15s ease; text-align: center; }
+    .step .step-num { width: 26px; height: 26px; border-radius: 50%; background: var(--surface); border: 1px solid var(--border); color: var(--text-2); font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 6px; }
+    .step b { display: block; font-size: 13px; color: var(--text); }
+    .step span { font-size: 11px; color: var(--text-3); }
+    .step.active { border-color: var(--primary); background: var(--primary-soft); }
+    .step.active .step-num { background: var(--primary); border-color: var(--primary); color: #fff; }
+    .step.done { border-color: rgba(22,163,74,.4); }
+    .step.done .step-num { background: var(--success, #16A34A); border-color: transparent; color: #fff; }
+    .wizard-panel { display: none; }
+    .wizard-panel.active { display: block; }
+    .file-box { border: 2px dashed var(--border); border-radius: var(--radius-sm); padding: 16px; text-align: center; transition: all .15s ease; background: var(--surface-2); }
+    .file-box:hover { border-color: var(--primary); }
+    .file-box i { font-size: 20px; color: var(--primary); display: block; margin-bottom: 6px; }
+    .file-box b { font-size: 12px; color: var(--text); display: block; }
+    .file-box span { font-size: 11px; color: var(--text-3); word-break: break-all; }
+    .file-box.has-file { border-style: solid; border-color: var(--success, #16A34A); background: rgba(22,163,74,.06); }
+    .file-input { display: none; }
+    .info-item { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; }
+    .info-item + .info-item { border-top: 1px dashed var(--border); }
+    .info-icon { width: 34px; height: 34px; border-radius: 10px; background: var(--primary-soft); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+    .info-item b { display: block; font-size: 13px; color: var(--text); }
+    .info-item span { font-size: 12px; color: var(--text-2); line-height: 1.5; }
+    .kyc-approved-box { display: flex; align-items: center; gap: 14px; padding: 16px; border-radius: 12px; background: rgba(22,163,74,.08); border: 1px solid rgba(22,163,74,.25); margin-bottom: 14px; }
+    .kyc-pending-box { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 12px; background: rgba(217,119,6,.08); border: 1px solid rgba(217,119,6,.25); margin-bottom: 14px; }
+    .wizard-nav { display: flex; gap: 10px; justify-content: space-between; margin-top: 8px; }
+    .doc-preview { max-width: 100%; max-height: 180px; border-radius: 8px; border: 1px solid var(--border); margin-top: 10px; }
+    @media (max-width: 992px) { .kyc-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <main class="main-content" id="main">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Identity Verification</h1>
+        <p class="page-subtitle">Complete the four steps below to verify your identity. You can save and resume at any time.</p>
+      </div>
+    </div>
+
+    <div class="kyc-grid">
+      <div class="card reveal" id="wizardCard">
+        <div class="stepper">
+          <div class="step active" data-step="1"><div class="step-num">1</div><b>Personal Info</b><span id="stepLabel1">In progress</span></div>
+          <div class="step" data-step="2"><div class="step-num">2</div><b>Government ID</b><span id="stepLabel2">Not started</span></div>
+          <div class="step" data-step="3"><div class="step-num">3</div><b>SSN / Address</b><span id="stepLabel3">Not started</span></div>
+          <div class="step" data-step="4"><div class="step-num">4</div><b>Declaration</b><span id="stepLabel4">Not started</span></div>
+        </div>
+
+        <!-- Step 1: Personal info -->
+        <div class="wizard-panel active" id="panel1">
+          <div class="card-title mb-16"><i class="fas fa-user"></i> Step 1 — Personal Information</div>
+          <div id="note1"></div>
+          <form id="form1">
+            <div class="form-group">
+              <label class="form-label">Full Legal Name (as shown on your ID) *</label>
+              <input type="text" class="input" id="fullName" placeholder="Enter your full legal name" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Date of Birth *</label>
+              <input type="date" class="input" id="dob" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Phone Number *</label>
+              <input type="tel" class="input" id="phone" placeholder="e.g. +1 555 123 4567" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Email Address *</label>
+              <input type="email" class="input" id="email" placeholder="Your registered email" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Residential Address *</label>
+              <textarea class="textarea" id="address" rows="2" placeholder="Enter your current residential address" required></textarea>
+            </div>
+            <div class="wizard-nav">
+              <span></span>
+              <button type="submit" class="btn btn-primary" id="btn1">Continue <i class="fas fa-arrow-right"></i></button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Step 2: Government ID (KYC level 1) -->
+        <div class="wizard-panel" id="panel2">
+          <div class="card-title mb-16"><i class="fas fa-id-card"></i> Step 2 — Government ID</div>
+          <div id="note2"></div>
+          <form id="form2">
+            <div class="form-group">
+              <label class="form-label">ID Type *</label>
+              <select class="select" id="idType" required>
+                <option value="">Select ID type</option>
+                <option value="passport">Passport</option>
+                <option value="drivers_license">Driver's License</option>
+                <option value="national_id">National ID</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">ID Number *</label>
+              <input type="text" class="input" id="idNumber" placeholder="Enter your ID number" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">ID Document — Front Side *</label>
+              <label class="file-box" id="boxFront" style="display:block;cursor:pointer;">
+                <i class="fas fa-id-card"></i>
+                <b>Front side of your ID</b>
+                <span id="labelFront">Click to upload (JPG, PNG — max 10MB)</span>
+                <input type="file" class="file-input" id="frontImage" accept="image/jpeg,image/png,image/webp">
+              </label>
+              <img id="previewFront" class="doc-preview" style="display:none;" alt="Front of ID preview">
+            </div>
+            <div class="form-group" id="backGroup">
+              <label class="form-label">ID Document — Back Side *</label>
+              <label class="file-box" id="boxBack" style="display:block;cursor:pointer;">
+                <i class="fas fa-id-card"></i>
+                <b>Back side of your ID</b>
+                <span id="labelBack">Click to upload (JPG, PNG — max 10MB)</span>
+                <input type="file" class="file-input" id="backImage" accept="image/jpeg,image/png,image/webp">
+              </label>
+              <img id="previewBack" class="doc-preview" style="display:none;" alt="Back of ID preview">
+              <div class="form-hint mt-8" id="backHint">Passports do not have a back side — this field is hidden for passports.</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Selfie (Optional)</label>
+              <label class="file-box" id="boxSelfie" style="display:block;cursor:pointer;">
+                <i class="fas fa-camera"></i>
+                <b>Selfie holding your ID</b>
+                <span id="labelSelfie">Click to upload a selfie</span>
+                <input type="file" class="file-input" id="selfieImage" accept="image/jpeg,image/png,image/webp">
+              </label>
+              <img id="previewSelfie" class="doc-preview" style="display:none;" alt="Selfie preview">
+            </div>
+            <div class="wizard-nav">
+              <button type="button" class="btn btn-ghost" onclick="showStep(1)"><i class="fas fa-arrow-left"></i> Back</button>
+              <button type="submit" class="btn btn-primary" id="btn2">Submit &amp; Continue <i class="fas fa-arrow-right"></i></button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Step 3: SSN / proof (KYC level 2) -->
+        <div class="wizard-panel" id="panel3">
+          <div class="card-title mb-16"><i class="fas fa-shield-halved"></i> Step 3 — SSN Verification</div>
+          <div id="note3"></div>
+          <form id="form3">
+            <div class="form-group">
+              <label class="form-label">SSN Number *</label>
+              <input type="text" class="input" id="ssnNumber" placeholder="e.g. 123-45-6789" required>
+              <div class="form-hint mt-8">Your Social Security Number is encrypted and stored securely.</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">SSN Document *</label>
+              <label class="file-box" id="boxSsn" style="display:block;cursor:pointer;">
+                <i class="fas fa-image"></i>
+                <b>Photo of your SSN card</b>
+                <span id="labelSsn">Click to upload (JPG, PNG — max 10MB)</span>
+                <input type="file" class="file-input" id="ssnImage" accept="image/jpeg,image/png,image/webp">
+              </label>
+              <img id="previewSsn" class="doc-preview" style="display:none;" alt="SSN document preview">
+            </div>
+            <div class="wizard-nav">
+              <button type="button" class="btn btn-ghost" onclick="showStep(2)"><i class="fas fa-arrow-left"></i> Back</button>
+              <button type="submit" class="btn btn-primary" id="btn3">Submit &amp; Continue <i class="fas fa-arrow-right"></i></button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Step 4: Declaration -->
+        <div class="wizard-panel" id="panel4">
+          <div class="card-title mb-16"><i class="fas fa-file-signature"></i> Step 4 — Declaration</div>
+          <div id="note4"></div>
+          <div id="summaryBox" class="mb-16" style="background:var(--surface-2);border-radius:var(--radius-sm);padding:14px;"></div>
+          <form id="form4">
+            <div class="form-group">
+              <label class="flex gap-8" style="align-items:flex-start;cursor:pointer;">
+                <input type="checkbox" id="declaration" style="margin-top:3px;">
+                <span class="text-small">I confirm the information and documents provided are accurate and authentic. *</span>
+              </label>
+            </div>
+            <div class="wizard-nav">
+              <button type="button" class="btn btn-ghost" onclick="showStep(3)"><i class="fas fa-arrow-left"></i> Back</button>
+              <button type="submit" class="btn btn-primary" id="btn4"><i class="fas fa-check"></i> Finish Verification</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div>
+        <div class="card mb-16 reveal">
+          <div class="card-title mb-8"><i class="fas fa-circle-info"></i> Why Verification is Required</div>
+          <div class="info-item"><div class="info-icon"><i class="fas fa-shield-halved"></i></div><div><b>Security</b><span>Protect your account from fraud and unauthorized access.</span></div></div>
+          <div class="info-item"><div class="info-icon"><i class="fas fa-check-circle"></i></div><div><b>Compliance</b><span>Meet regulatory requirements for financial platforms.</span></div></div>
+          <div class="info-item"><div class="info-icon"><i class="fas fa-lock"></i></div><div><b>Higher Limits</b><span>Verified accounts unlock higher deposit and withdrawal limits.</span></div></div>
+        </div>
+
+        <div class="card reveal">
+          <div class="card-title mb-16"><i class="fas fa-chart-simple"></i> Verification Status</div>
+          <div id="statusCards"><div class="text-small text-muted">Loading...</div></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    if (!auth.isLoggedIn()) {
+      window.location.href = '../login.html';
+    }
+
+    const wizard = {
+      step: 1,
+      personal: {},
+      idSubmitted: false,
+      ssnSubmitted: false
+    };
+
+    const STATUS_META = {
+      approved: { cls: 'badge-success', icon: 'fa-circle-check', label: 'Approved' },
+      pending: { cls: 'badge-warning', icon: 'fa-clock', label: 'Pending review' },
+      rejected: { cls: 'badge-danger', icon: 'fa-circle-xmark', label: 'Rejected' }
+    };
+
+    function showStep(n) {
+      wizard.step = n;
+      document.querySelectorAll('.step').forEach(function (s) {
+        s.classList.toggle('active', Number(s.dataset.step) === n);
+      });
+      [1, 2, 3, 4].forEach(function (i) {
+        document.getElementById('panel' + i).classList.toggle('active', i === n);
+      });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    document.querySelectorAll('.step').forEach(function (s) {
+      s.addEventListener('click', function () { showStep(Number(this.dataset.step)); });
+    });
+
+    function hasBackSide(idType) {
+      return idType === 'drivers_license' || idType === 'national_id';
+    }
+
+    function bindFile(inputId, boxId, labelId, previewId) {
+      const input = document.getElementById(inputId);
+      input.addEventListener('change', function () {
+        const box = document.getElementById(boxId);
+        const label = document.getElementById(labelId);
+        const preview = document.getElementById(previewId);
+        if (input.files && input.files[0]) {
+          label.textContent = input.files[0].name;
+          box.classList.add('has-file');
+          if (preview) {
+            preview.src = URL.createObjectURL(input.files[0]);
+            preview.style.display = '';
+          }
+        } else {
+          box.classList.remove('has-file');
+          if (preview) { preview.style.display = 'none'; preview.src = ''; }
+        }
+      });
+    }
+
+    bindFile('frontImage', 'boxFront', 'labelFront', 'previewFront');
+    bindFile('backImage', 'boxBack', 'labelBack', 'previewBack');
+    bindFile('selfieImage', 'boxSelfie', 'labelSelfie', 'previewSelfie');
+    bindFile('ssnImage', 'boxSsn', 'labelSsn', 'previewSsn');
+
+    document.getElementById('idType').addEventListener('change', function () {
+      const showBack = hasBackSide(this.value);
+      document.getElementById('backGroup').style.display = showBack ? '' : 'none';
+      document.getElementById('backHint').textContent = showBack
+        ? 'Upload a clear photo of the back side of your ' + this.options[this.selectedIndex].text + '.'
+        : 'Passports do not have a back side — this field is hidden for passports.';
+    });
+
+    // ---- Step 1: personal info ----
+    document.getElementById('form1').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const fullName = document.getElementById('fullName').value.trim();
+      const dob = document.getElementById('dob').value;
+      const phone = document.getElementById('phone').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const address = document.getElementById('address').value.trim();
+      if (!fullName || !dob || !phone || !email || !address) { toast.error('Fill in all personal information fields'); return; }
+
+      const btn = document.getElementById('btn1');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+      try {
+        await api.put('/user/update-profile', { phone: phone });
+        wizard.personal = { fullName: fullName, dob: dob, phone: phone, email: email, address: address };
+        document.getElementById('stepLabel1').textContent = 'Complete';
+        document.querySelector('.step[data-step="1"]').classList.add('done');
+        toast.success('Personal information saved');
+        showStep(2);
+      } catch (err) {
+        toast.error('Could not save your details. Please try again.');
+      }
+      btn.disabled = false;
+      btn.innerHTML = 'Continue <i class="fas fa-arrow-right"></i>';
+    });
+
+    async function submitKycLevel(fd, btn, level) {
+      btn.disabled = true;
+      const orig = btn.innerHTML;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+      try {
+        const res = await api.post('/kyc', fd, true);
+        if (res && res.success) {
+          toast.success(res.message || ('Step submitted'));
+          await loadStatus();
+          if (level === 1) { wizard.idSubmitted = true; showStep(3); }
+          if (level === 2) { wizard.ssnSubmitted = true; renderSummary(); showStep(4); }
+          return true;
+        }
+        toast.error((res && res.message) || 'Submission failed');
+        return false;
+      } catch (e) {
+        toast.error('Submission failed. Please try again.');
+        return false;
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = orig;
+      }
+    }
+
+    // ---- Step 2: government ID (KYC level 1) ----
+    document.getElementById('form2').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const p = wizard.personal;
+      if (!p.fullName) { toast.error('Complete Step 1 first'); showStep(1); return; }
+      const idType = document.getElementById('idType').value;
+      const idNumber = document.getElementById('idNumber').value.trim();
+      if (!idType) { toast.error('Select an ID type'); return; }
+      if (!idNumber) { toast.error('Enter your ID number'); return; }
+      const front = document.getElementById('frontImage').files[0];
+      if (!front) { toast.error('Upload the front side of your ID'); return; }
+      const back = document.getElementById('backImage').files[0];
+      if (hasBackSide(idType) && !back) { toast.error('Upload the back side of your ID'); return; }
+
+      const fd = new FormData();
+      fd.append('level', '1');
+      fd.append('fullName', p.fullName);
+      fd.append('address', p.address);
+      fd.append('idType', idType);
+      fd.append('idNumber', idNumber);
+      fd.append('frontImage', front);
+      if (back) fd.append('backImage', back);
+      const selfie = document.getElementById('selfieImage').files[0];
+      if (selfie) fd.append('selfieImage', selfie);
+      submitKycLevel(fd, document.getElementById('btn2'), 1);
+    });
+
+    // ---- Step 3: SSN (KYC level 2) ----
+    document.getElementById('form3').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      if (!wizard.idSubmitted && !isLevelApproved(1)) { toast.error('Complete Step 2 first'); showStep(2); return; }
+      const ssnNumber = document.getElementById('ssnNumber').value.trim();
+      if (!ssnNumber) { toast.error('Enter your SSN number'); return; }
+      const ssnImg = document.getElementById('ssnImage').files[0];
+      if (!ssnImg) { toast.error('Upload a photo of your SSN card'); return; }
+
+      const fd = new FormData();
+      fd.append('level', '2');
+      fd.append('ssnNumber', ssnNumber);
+      fd.append('ssnImage', ssnImg);
+      submitKycLevel(fd, document.getElementById('btn3'), 2);
+    });
+
+    // ---- Step 4: declaration ----
+    function renderSummary() {
+      const p = wizard.personal;
+      document.getElementById('summaryBox').innerHTML =
+        '<div class="text-small" style="line-height:1.8;color:var(--text-2);">' +
+        '<b style="color:var(--text);">Name:</b> ' + utils.escapeHtml(p.fullName || '—') + '<br>' +
+        '<b style="color:var(--text);">Date of birth:</b> ' + utils.escapeHtml(p.dob || '—') + '<br>' +
+        '<b style="color:var(--text);">Phone:</b> ' + utils.escapeHtml(p.phone || '—') + '<br>' +
+        '<b style="color:var(--text);">Email:</b> ' + utils.escapeHtml(p.email || '—') + '<br>' +
+        '<b style="color:var(--text);">Address:</b> ' + utils.escapeHtml(p.address || '—') + '<br>' +
+        '<b style="color:var(--text);">Government ID:</b> ' + (wizard.idSubmitted || isLevelApproved(1) ? '<span class="badge badge-success">Submitted</span>' : '<span class="badge badge-muted">Not submitted</span>') + '<br>' +
+        '<b style="color:var(--text);">SSN:</b> ' + (wizard.ssnSubmitted || isLevelApproved(2) ? '<span class="badge badge-success">Submitted</span>' : '<span class="badge badge-muted">Not submitted</span>') +
+        '</div>';
+    }
+
+    document.getElementById('form4').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      if (!document.getElementById('declaration').checked) {
+        toast.error('Please confirm the declaration to finish');
+        return;
+      }
+      const done = (wizard.idSubmitted || isLevelApproved(1)) && (wizard.ssnSubmitted || isLevelApproved(2));
+      if (!done) {
+        toast.warning('Please complete Steps 2 and 3 before finishing');
+        showStep(wizard.idSubmitted || isLevelApproved(1) ? 3 : 2);
+        return;
+      }
+      document.getElementById('stepLabel4').textContent = 'Complete';
+      document.querySelector('.step[data-step="4"]').classList.add('done');
+      toast.success('Verification submitted — our team will review your documents');
+      loadStatus();
+    });
+
+    // ---- Status from backend ----
+    let LEVEL_STATUS = {};
+    function isLevelApproved(lvl) {
+      return LEVEL_STATUS[lvl] && LEVEL_STATUS[lvl].status === 'approved';
+    }
+
+    // Submitted documents are served by the authenticated file route — fetch
+    // with the Bearer token and hand <img> elements object URLs.
+    const DOC_LABELS = { frontImage: 'Front of ID', backImage: 'Back of ID', selfieImage: 'Selfie', ssnImage: 'SSN document' };
+
+    function fileUrl(p) {
+      if (!p) return '';
+      const base = String(p).split('/').pop();
+      return API_BASE_URL + '/files/kyc/' + encodeURIComponent(base);
+    }
+
+    async function loadAuthedImage(url) {
+      try {
+        const res = await fetch(url, { headers: api.getHeaders() });
+        if (!res.ok) return '';
+        const blob = await res.blob();
+        return URL.createObjectURL(blob);
+      } catch (e) { return ''; }
+    }
+
+    function hydrateImages(root) {
+      root.querySelectorAll('img[data-authed-src]').forEach(async function (img) {
+        const objectUrl = await loadAuthedImage(img.dataset.authedSrc);
+        if (objectUrl) img.src = objectUrl;
+      });
+    }
+
+    async function loadStatus() {
+      try {
+        const res = await api.get('/kyc?all=1');
+        if (!res || !res.success) return;
+        const list = res.data || [];
+        LEVEL_STATUS = {};
+        list.forEach(function (k) {
+          const lvl = k.level || 1;
+          if (!LEVEL_STATUS[lvl] || k.createdAt > LEVEL_STATUS[lvl].createdAt) LEVEL_STATUS[lvl] = k;
+        });
+        renderStatus();
+      } catch (e) { /* leave defaults */ }
+    }
+
+    function fmtDate(d) {
+      return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function renderStatus() {
+      const cards = [];
+      const LEVEL_NAMES = { 1: 'Government ID', 2: 'SSN Verification' };
+      [1, 2].forEach(function (lvl) {
+        const k = LEVEL_STATUS[lvl];
+        const meta = k ? (STATUS_META[k.status] || STATUS_META.pending) : null;
+        const textEl = document.getElementById('stepLabel' + lvl);
+        const stepEl = document.querySelector('.step[data-step="' + (lvl + 1) + '"]');
+        const numEl = stepEl && stepEl.querySelector('.step-num');
+        const form = document.getElementById('form' + (lvl + 1));
+        const noteEl = document.getElementById('note' + (lvl + 1));
+        if (numEl) stepEl.classList.remove('done');
+
+        if (!k) {
+          if (textEl) textEl.textContent = 'Not submitted';
+          if (noteEl) noteEl.innerHTML = '';
+          if (form) form.style.display = '';
+          cards.push('<div class="info-item"><div class="info-icon"><i class="fas fa-circle-question"></i></div><div><b>' + LEVEL_NAMES[lvl] + '</b><span class="badge badge-muted">Not submitted</span></div></div>');
+          return;
+        }
+
+        if (textEl) textEl.textContent = meta.label;
+        if (k.status === 'approved') {
+          if (stepEl) { stepEl.classList.add('done'); numEl.innerHTML = '<i class="fas fa-check"></i>'; }
+          if (form) form.style.display = 'none';
+          if (noteEl) noteEl.innerHTML =
+            '<div class="kyc-approved-box"><i class="fas fa-circle-check" style="color:#16A34A;font-size:34px;"></i>' +
+            '<div><div style="font-weight:800;color:#16A34A;font-size:15px;">' + LEVEL_NAMES[lvl] + ' approved</div>' +
+            '<div class="text-small" style="color:var(--text-2);">Verified on ' + fmtDate(k.reviewedAt || k.submittedAt) + '</div></div></div>';
+        } else if (k.status === 'pending') {
+          if (form) form.style.display = 'none';
+          if (noteEl) noteEl.innerHTML =
+            '<div class="kyc-pending-box"><i class="fas fa-clock" style="color:#D97706;font-size:22px;"></i>' +
+            '<div><div style="font-weight:700;color:#D97706;font-size:13px;">Awaiting approval</div>' +
+            '<div class="text-small" style="color:var(--text-2);">Your ' + LEVEL_NAMES[lvl] + ' submission is being reviewed by our team.</div></div></div>';
+        } else {
+          if (form) form.style.display = '';
+          if (noteEl) noteEl.innerHTML =
+            '<div class="status-pill" style="background:rgba(220,38,38,.1);color:#DC2626;margin-bottom:14px;"><i class="fas fa-circle-xmark"></i> Rejected' + (k.adminNote ? ': ' + utils.escapeHtml(k.adminNote) : '') + '. Please correct the details and resubmit.</div>';
+        }
+
+        const when = k.submittedAt ? fmtDate(k.submittedAt) : '';
+        const docImgs = ['frontImage', 'backImage', 'selfieImage', 'ssnImage']
+          .filter(function (f) { return k[f]; })
+          .map(function (f) {
+            return '<div style="text-align:center;"><img data-authed-src="' + fileUrl(k[f]) + '" alt="' + DOC_LABELS[f] + '" style="width:100%;max-height:110px;object-fit:cover;border-radius:8px;border:1px solid var(--border);"><div class="text-small text-muted">' + DOC_LABELS[f] + '</div></div>';
+          }).join('');
+        cards.push('<div class="info-item"><div class="info-icon"><i class="fas ' + (meta ? meta.icon : 'fa-id-card') + '"></i></div><div style="flex:1;min-width:0;"><b>' + LEVEL_NAMES[lvl] + '</b><span class="badge ' + (meta ? meta.cls : 'badge-muted') + '">' + (meta ? meta.label : k.status) + '</span>' + (when ? '<div class="text-small text-muted mt-4">Submitted ' + when + '</div>' : '') +
+          (docImgs ? '<div class="grid-3 mt-8" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">' + docImgs + '</div>' : '') + '</div></div>');
+      });
+      document.getElementById('statusCards').innerHTML = cards.join('') +
+        '<div class="info-item"><div class="info-icon"><i class="fas fa-file-signature"></i></div><div><b>Declaration</b><span class="badge badge-muted">Confirm in Step 4</span></div></div>';
+      hydrateImages(document.getElementById('statusCards'));
+    }
+
+    // Prefill from profile
+    (async function prefill() {
+      try {
+        const res = await api.get('/user/profile');
+        if (res && res.success && res.data) {
+          const u = res.data;
+          if (u.name) document.getElementById('fullName').value = u.name;
+          if (u.email) document.getElementById('email').value = u.email;
+          if (u.phone) document.getElementById('phone').value = u.phone;
+        }
+      } catch (e) { /* fields stay empty */ }
+    })();
+
+    loadStatus();
+  </script>
+</body>
+</html>

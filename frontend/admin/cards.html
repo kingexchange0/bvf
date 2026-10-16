@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cards - BrightVale Finance Admin</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script>window.PAGE_CONFIG = { role: 'admin', active: 'cards', title: 'Card Applications' };</script>
+  <script src="../js/main.js"></script>
+</head>
+<body>
+  <main class="main-content" id="main">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Card Applications</h1>
+        <p class="page-subtitle">Review card applications. Cards are issued by a partner bank — no card numbers are stored or displayed in this app.</p>
+      </div>
+    </div>
+
+    <div class="tabs mb-16" id="statusTabs">
+      <button class="tab active" data-status="">All</button>
+      <button class="tab" data-status="pending">Pending</button>
+      <button class="tab" data-status="approved">Approved</button>
+      <button class="tab" data-status="rejected">Rejected</button>
+    </div>
+
+    <div class="card">
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr><th>Applicant</th><th>Product</th><th>Applied</th><th>Status</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="appsBody"></tbody>
+        </table>
+      </div>
+      <div class="table-footer">
+        <span id="appsCount"></span>
+        <div id="appsPagination"></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Reject reason modal -->
+  <div class="modal-overlay" id="rejectModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Reject Application</div>
+        <button class="modal-close" onclick="modal.close('rejectModal')"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="rejectReason">Reason *</label>
+          <textarea class="textarea" id="rejectReason" rows="3" placeholder="Reason shown to the applicant"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="modal.close('rejectModal')">Cancel</button>
+        <button class="btn btn-danger-soft" id="rejectConfirmBtn"><i class="fas fa-xmark"></i> Reject Application</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    if (!auth.requireAdmin()) throw new Error('Admin access required');
+
+    const esc = utils.escapeHtml;
+    const state = { page: 1, limit: 20, status: '' };
+    let rejectTargetId = null;
+
+    const STATUS_BADGE = { pending: 'badge-warning', approved: 'badge-success', rejected: 'badge-danger' };
+
+    async function loadApps() {
+      loading.show('appsBody');
+      try {
+        const params = new URLSearchParams({ page: state.page, limit: state.limit, all: '1' });
+        if (state.status) params.set('status', state.status);
+        const res = await api.get('/cards?' + params.toString());
+        if (!res || !res.success) {
+          toast.error((res && res.message) || 'Failed to load applications');
+          return;
+        }
+        const list = res.data || [];
+        document.getElementById('appsBody').innerHTML = list.length
+          ? list.map(a => {
+              const u = a.userId || {};
+              const productName = (a.productId && (a.productId.name || a.productId)) || 'Card';
+              return '<tr>' +
+                '<td><div>' + esc(u.name || 'N/A') + '</div><div class="text-small text-muted">' + esc(u.email || '') + '</div></td>' +
+                '<td>' + esc(typeof productName === 'string' ? productName : 'Card') + '</td>' +
+                '<td>' + utils.formatDateTime(a.createdAt) + '</td>' +
+                '<td><span class="badge ' + (STATUS_BADGE[a.status] || 'badge-muted') + '">' + esc(a.status || 'pending') + '</span>' +
+                  (a.rejectionReason ? '<div class="text-small text-muted">' + esc(a.rejectionReason) + '</div>' : '') + '</td>' +
+                '<td>' + (a.status === 'pending'
+                  ? '<div class="flex gap-4">' +
+                      '<button class="btn btn-sm btn-primary" onclick="approveApp(\'' + a._id + '\')"><i class="fas fa-check"></i> Approve</button>' +
+                      '<button class="btn btn-sm btn-danger-soft" onclick="openReject(\'' + a._id + '\')"><i class="fas fa-xmark"></i> Reject</button>' +
+                    '</div>'
+                  : '<span class="text-small text-muted">Processed</span>') + '</td>' +
+              '</tr>';
+            }).join('')
+          : '<tr><td colspan="5"><div class="empty-state"><div class="empty-icon"><i class="fas fa-credit-card"></i></div><div class="empty-title">No applications</div></div></td></tr>';
+        const p = res.pagination || {};
+        document.getElementById('appsCount').textContent = (p.total || list.length) + ' application(s)';
+        pagination.render('appsPagination', Number(p.currentPage) || 1, Number(p.pages) || 1, 'goToPage');
+      } catch (e) {
+        toast.error('Failed to load applications');
+      } finally {
+        loading.hide('appsBody');
+      }
+    }
+
+    function goToPage(page) { state.page = page; loadApps(); }
+
+    window.approveApp = async function (id) {
+      try {
+        const res = await api.put('/cards/' + id + '/approve', {});
+        if (res && res.success) { toast.success('Application approved'); loadApps(); }
+        else toast.error((res && res.message) || 'Approve failed');
+      } catch (e) { toast.error('Approve failed'); }
+    };
+
+    window.openReject = function (id) {
+      rejectTargetId = id;
+      document.getElementById('rejectReason').value = '';
+      modal.open('rejectModal');
+    };
+
+    document.getElementById('rejectConfirmBtn').addEventListener('click', async function () {
+      if (!rejectTargetId) return;
+      const reason = document.getElementById('rejectReason').value.trim();
+      if (!reason) { toast.error('A reason is required to reject an application'); return; }
+      const btn = this;
+      btn.disabled = true;
+      try {
+        const res = await api.put('/cards/' + rejectTargetId + '/reject', { reason: reason });
+        if (res && res.success) {
+          toast.success('Application rejected');
+          modal.close('rejectModal');
+          loadApps();
+        } else {
+          toast.error((res && res.message) || 'Reject failed');
+        }
+      } catch (e) {
+        toast.error('Reject failed');
+      }
+      btn.disabled = false;
+    });
+
+    document.getElementById('statusTabs').addEventListener('click', function (e) {
+      const tab = e.target.closest('.tab');
+      if (!tab) return;
+      document.querySelectorAll('#statusTabs .tab').forEach(function (t) { t.classList.remove('active'); });
+      tab.classList.add('active');
+      state.status = tab.dataset.status;
+      state.page = 1;
+      loadApps();
+    });
+
+    loadApps();
+  </script>
+</body>
+</html>

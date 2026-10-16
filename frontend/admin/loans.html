@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Loans - BrightVale Finance Admin</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script>window.PAGE_CONFIG = { role: 'admin', active: 'loans', title: 'Loans' };</script>
+  <script src="../js/main.js"></script>
+</head>
+<body>
+  <main class="main-content" id="main">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Loans</h1>
+        <p class="page-subtitle">Review loan requests and monitor active loans.</p>
+      </div>
+      <a class="btn btn-ghost" href="loan-plans.html"><i class="fas fa-list"></i> Manage plans</a>
+    </div>
+
+    <div class="stat-grid" id="loanStats"></div>
+
+    <div class="card mt-16">
+      <div class="filter-bar mb-16">
+        <select class="select" id="statusFilter" style="width: auto;">
+          <option value="">All statuses</option>
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="active">Active</option>
+          <option value="completed">Completed</option>
+          <option value="declined">Declined</option>
+          <option value="defaulted">Defaulted</option>
+        </select>
+        <button class="btn btn-primary" id="applyBtn"><i class="fas fa-filter"></i> Apply</button>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr><th>User</th><th>Plan</th><th>Amount</th><th>Total Repayment</th><th>Monthly Payment</th><th>Status</th><th>Note</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="loansBody"></tbody>
+        </table>
+      </div>
+      <div class="table-footer">
+        <span id="loansCount"></span>
+        <div id="loansPagination"></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Approve / decline note modal -->
+  <div class="modal-overlay" id="actionModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title" id="actionTitle">Process loan</div>
+        <button class="modal-close" onclick="modal.close('actionModal')"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-small text-muted mb-8" id="actionSummary"></p>
+        <div class="form-group">
+          <label class="form-label" for="actionNote">Admin note (optional)</label>
+          <textarea class="textarea" id="actionNote" style="min-height: 80px;" placeholder="Add an internal note for this decision"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="modal.close('actionModal')">Cancel</button>
+        <button class="btn btn-primary" id="actionConfirmBtn"><i class="fas fa-check"></i> Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    if (!auth.requireAdmin()) throw new Error('Admin access required');
+
+    const esc = utils.escapeHtml;
+    const state = { page: 1, limit: 20, status: '' };
+    let actionState = { id: null, action: null };
+
+    const badgeClass = (s) => {
+      s = (s || '').toLowerCase();
+      if (['approved', 'completed', 'active', 'paid', 'verified', 'available', 'sold'].includes(s)) return 'badge-success';
+      if (['pending', 'processing'].includes(s)) return 'badge-warning';
+      if (['declined', 'rejected', 'suspended', 'cancelled', 'canceled', 'failed', 'defaulted'].includes(s)) return 'badge-danger';
+      if (['draft', 'unavailable', 'inactive', 'not_submitted'].includes(s)) return 'badge-muted';
+      if (s === 'featured') return 'badge-primary';
+      return 'badge-muted';
+    };
+    const badge = (s) => `<span class="badge ${badgeClass(s)}">${esc(s ? String(s).replace(/_/g, ' ') : 'N/A')}</span>`;
+
+    const statChip = (label, value, icon) => `
+      <div class="stat-card">
+        <div class="flex-between">
+          <span class="stat-icon"><i class="fas ${icon}"></i></span>
+        </div>
+        <div>
+          <div class="stat-label">${esc(label)}</div>
+          <div class="stat-value">${value}</div>
+        </div>
+      </div>`;
+
+    async function loadLoans() {
+      loading.show('loansBody');
+      try {
+        const params = new URLSearchParams({ page: state.page, limit: state.limit });
+        if (state.status) params.set('status', state.status);
+        const res = await api.get(`/loans/admin/all?${params.toString()}`);
+        if (!res.success) {
+          toast.error(res.message || 'Failed to load loans');
+          return;
+        }
+        const stats = res.stats || {};
+        document.getElementById('loanStats').innerHTML =
+          statChip('Active Volume', utils.formatCurrency(stats.totalActive), 'fa-hand-holding-dollar') +
+          statChip('Pending Volume', utils.formatCurrency(stats.totalPending), 'fa-clock') +
+          statChip('Pending Requests', Number(stats.pendingCount || 0).toLocaleString(), 'fa-inbox');
+
+        const loans = res.data || [];
+        document.getElementById('loansBody').innerHTML = loans.length
+          ? loans.map(l => `
+              <tr>
+                <td>
+                  ${esc((l.userId && l.userId.name) || 'Deleted user')}
+                  <div class="text-small text-muted">${esc((l.userId && l.userId.email) || '')}</div>
+                </td>
+                <td>${esc(l.planName || (l.planId && l.planId.name) || 'N/A')}</td>
+                <td>${utils.formatCurrency(l.amount)}</td>
+                <td>${utils.formatCurrency(l.totalRepayment)}</td>
+                <td>${utils.formatCurrency(l.monthlyPayment)}</td>
+                <td>${badge(l.status)}</td>
+                <td class="text-small text-muted">${esc(l.adminNote || '—')}</td>
+                <td>
+                  ${l.status === 'pending' ? `
+                    <div class="flex gap-4">
+                      <button class="btn btn-sm btn-primary" onclick="openAction('${l._id}', 'approve', ${Number(l.amount)})"><i class="fas fa-check"></i> Approve</button>
+                      <button class="btn btn-sm btn-danger-soft" onclick="openAction('${l._id}', 'decline', ${Number(l.amount)})"><i class="fas fa-xmark"></i> Decline</button>
+                    </div>` : '<span class="text-small text-muted">Processed</span>'}
+                </td>
+              </tr>`).join('')
+          : `<tr><td colspan="8"><div class="empty-state"><div class="empty-icon"><i class="fas fa-hand-holding-dollar"></i></div><div class="empty-title">No loans found</div><div class="empty-hint">Loan requests will appear here once users apply.</div></div></td></tr>`;
+
+        const p = res.pagination || {};
+        document.getElementById('loansCount').textContent = `${p.total || loans.length} loan(s)`;
+        pagination.render('loansPagination', Number(p.currentPage) || 1, Number(p.pages) || 1, 'goToPage');
+      } catch (error) {
+        console.error(error);
+        toast.error('Failed to load loans');
+      } finally {
+        loading.hide('loansBody');
+      }
+    }
+
+    function goToPage(page) {
+      state.page = page;
+      loadLoans();
+    }
+
+    function openAction(id, action, amount) {
+      actionState = { id, action };
+      document.getElementById('actionTitle').textContent = action === 'approve' ? 'Approve loan' : 'Decline loan';
+      document.getElementById('actionSummary').textContent =
+        `You are about to ${action} a loan of ${utils.formatCurrency(amount)}.`;
+      document.getElementById('actionNote').value = '';
+      document.getElementById('actionConfirmBtn').className = action === 'approve' ? 'btn btn-primary' : 'btn btn-danger-soft';
+      modal.open('actionModal');
+    }
+
+    document.getElementById('actionConfirmBtn').addEventListener('click', async () => {
+      if (!actionState.id) return;
+      const btn = document.getElementById('actionConfirmBtn');
+      btn.disabled = true;
+      try {
+        const res = await api.put(`/loans/admin/${actionState.id}/${actionState.action}`, {
+          adminNote: document.getElementById('actionNote').value.trim()
+        });
+        if (res.success) {
+          toast.success(res.message || 'Loan updated');
+          modal.close('actionModal');
+          loadLoans();
+        } else {
+          toast.error(res.message || 'Operation failed');
+        }
+      } catch (error) {
+        console.error(error);
+        toast.error('Operation failed');
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById('applyBtn').addEventListener('click', () => {
+      state.status = document.getElementById('statusFilter').value;
+      state.page = 1;
+      loadLoans();
+    });
+
+    // Preselect status from query string, e.g. loans.html?status=pending
+    const preset = new URLSearchParams(location.search).get('status');
+    if (preset) {
+      document.getElementById('statusFilter').value = preset;
+      state.status = preset;
+    }
+    loadLoans();
+  </script>
+</body>
+</html>

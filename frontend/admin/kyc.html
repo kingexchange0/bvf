@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KYC - BrightVale Finance Admin</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script>window.PAGE_CONFIG = { role: 'admin', active: 'kyc', title: 'KYC' };</script>
+  <script src="../js/main.js"></script>
+</head>
+<body>
+  <main class="main-content" id="main">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">KYC Verification</h1>
+        <p class="page-subtitle">Review identity documents submitted by users.</p>
+      </div>
+    </div>
+
+    <div class="tabs mb-16" id="statusTabs">
+      <button class="tab active" data-status="">All</button>
+      <button class="tab" data-status="pending">Pending <span class="badge badge-warning" id="countPending">0</span></button>
+      <button class="tab" data-status="approved">Approved <span class="badge badge-success" id="countApproved">0</span></button>
+      <button class="tab" data-status="rejected">Rejected <span class="badge badge-danger" id="countRejected">0</span></button>
+    </div>
+
+    <div class="grid" id="kycGrid"></div>
+
+    <div class="table-footer mt-16">
+      <span id="kycCount"></span>
+      <div id="kycPagination"></div>
+    </div>
+  </main>
+
+  <!-- Document viewer modal -->
+  <div class="modal-overlay" id="imageModal">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <div class="modal-title" id="imageModalTitle">Document</div>
+        <button class="modal-close" onclick="modal.close('imageModal')"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <img id="imageModalImg" src="" alt="KYC document" style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="modal.close('imageModal')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Approve / reject note modal -->
+  <div class="modal-overlay" id="actionModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title" id="actionTitle">Process KYC</div>
+        <button class="modal-close" onclick="modal.close('actionModal')"><i class="fas fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-small text-muted mb-8" id="actionSummary"></p>
+        <div class="form-group">
+          <label class="form-label" for="actionNote">Admin note (optional)</label>
+          <textarea class="textarea" id="actionNote" style="min-height: 80px;" placeholder="Reason or note for this decision"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="modal.close('actionModal')">Cancel</button>
+        <button class="btn btn-primary" id="actionConfirmBtn"><i class="fas fa-check"></i> Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    if (!auth.requireAdmin()) throw new Error('Admin access required');
+
+    const esc = utils.escapeHtml;
+    const state = { page: 1, limit: 12, status: '' };
+    let actionState = { id: null, action: null };
+
+    const badgeClass = (s) => {
+      s = (s || '').toLowerCase();
+      if (['approved', 'completed', 'active', 'paid', 'verified', 'available', 'sold'].includes(s)) return 'badge-success';
+      if (['pending', 'processing'].includes(s)) return 'badge-warning';
+      if (['declined', 'rejected', 'suspended', 'cancelled', 'canceled', 'failed', 'defaulted'].includes(s)) return 'badge-danger';
+      if (['draft', 'unavailable', 'inactive', 'not_submitted'].includes(s)) return 'badge-muted';
+      if (s === 'featured') return 'badge-primary';
+      return 'badge-muted';
+    };
+    const badge = (s) => `<span class="badge ${badgeClass(s)}">${esc(s ? String(s).replace(/_/g, ' ') : 'N/A')}</span>`;
+
+    // KYC documents are served by the authenticated file route — fetch with the
+    // Bearer token and hand the <img> an object URL.
+    const fileUrl = (p) => {
+      if (!p) return '';
+      const base = String(p).split('/').pop();
+      return `${API_BASE_URL}/files/kyc/${encodeURIComponent(base)}`;
+    };
+
+    async function loadAuthedImage(url) {
+      try {
+        const res = await fetch(url, { headers: api.getHeaders() });
+        if (!res.ok) return '';
+        const blob = await res.blob();
+        return URL.createObjectURL(blob);
+      } catch (e) { return ''; }
+    }
+
+    async function hydrateImages(root) {
+      const imgs = (root || document).querySelectorAll('img[data-authed-src]');
+      imgs.forEach(async function (img) {
+        const objectUrl = await loadAuthedImage(img.dataset.authedSrc);
+        if (objectUrl) img.src = objectUrl;
+        else img.alt = 'Document unavailable';
+      });
+    }
+
+    const DOC_LABELS = { frontImage: 'Front of ID', backImage: 'Back of ID', selfieImage: 'Selfie', ssnImage: 'SSN Picture' };
+
+    function maskNumber(n) {
+      const s = String(n || '');
+      return s.length > 4 ? '•••• ' + s.slice(-4) : (s ? '••••' : '');
+    }
+
+    async function loadKyc() {
+      loading.show('kycGrid');
+      try {
+        const params = new URLSearchParams({ page: state.page, limit: state.limit });
+        if (state.status) params.set('status', state.status);
+        const res = await api.get(`/kyc/admin/all?${params.toString()}`);
+        if (!res.success) {
+          toast.error(res.message || 'Failed to load KYC submissions');
+          return;
+        }
+        const stats = res.stats || {};
+        document.getElementById('countPending').textContent = stats.pending ?? 0;
+        document.getElementById('countApproved').textContent = stats.approved ?? 0;
+        document.getElementById('countRejected').textContent = stats.rejected ?? 0;
+
+        const items = res.data || [];
+        document.getElementById('kycGrid').innerHTML = items.length
+          ? items.map(k => {
+              const u = k.userId || {};
+              const docs = ['frontImage', 'backImage', 'selfieImage', 'ssnImage']
+                .filter(field => k[field])
+                .map(field => `
+                  <div style="cursor: pointer;" onclick="viewImage('${esc(fileUrl(k[field]))}', '${esc(DOC_LABELS[field])}')" title="View ${esc(DOC_LABELS[field])}">
+                    <img data-authed-src="${esc(fileUrl(k[field]))}" alt="${esc(DOC_LABELS[field])}" loading="lazy" style="width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 8px; border: 1px solid var(--border);">
+                    <div class="text-small text-muted mt-4">${esc(DOC_LABELS[field])}</div>
+                  </div>`).join('');
+              const lvl = k.level || 1;
+              const infoLines = [];
+              if (k.fullName) infoLines.push(`<div class="mt-4"><i class="fas fa-user"></i> ${esc(k.fullName)}</div>`);
+              if (k.address) infoLines.push(`<div class="mt-4"><i class="fas fa-house"></i> ${esc(k.address)}</div>`);
+              if (k.idType) infoLines.push(`<div class="mt-4"><i class="fas fa-id-card"></i> ${esc((k.idType || '').replace(/_/g, ' '))}${k.idNumber ? ' &middot; ' + esc(k.idNumber) : ''}</div>`);
+              if (k.ssnNumber) infoLines.push(`<div class="mt-4"><i class="fas fa-shield-halved"></i> SSN &middot; ${esc(maskNumber(k.ssnNumber))}</div>`);
+              infoLines.push(`<div class="mt-4"><i class="fas fa-calendar"></i> ${utils.formatDateTime(k.submittedAt)}</div>`);
+              return `
+              <div class="card">
+                <div class="card-header">
+                  <div class="flex gap-8" style="align-items: center;">
+                    <div class="avatar">${esc(utils.getInitials(u.name))}</div>
+                    <div>
+                      <div class="card-title">${esc(u.name || 'Unknown')}</div>
+                      <div class="text-small text-muted">${esc(u.email || '')}</div>
+                    </div>
+                  </div>
+                  <div class="flex gap-8" style="align-items: center;">
+                    <span class="badge badge-primary">Level ${lvl}</span>
+                    ${badge(k.status)}
+                  </div>
+                </div>
+                <div class="text-small text-muted">
+                  ${u.phone ? `<div><i class="fas fa-phone"></i> ${esc(u.phone)}</div>` : ''}
+                  ${u.country ? `<div class="mt-4"><i class="fas fa-location-dot"></i> ${esc(u.country)}</div>` : ''}
+                  ${infoLines.join('')}
+                </div>
+                <div class="grid-3 mt-12">${docs || '<p class="text-small text-muted">No documents.</p>'}</div>
+                ${k.adminNote ? `<p class="text-small text-muted mt-8"><i class="fas fa-note-sticky"></i> ${esc(k.adminNote)}</p>` : ''}
+                ${k.status === 'pending' ? `
+                  <div class="flex gap-8 mt-16">
+                    <button class="btn btn-sm btn-primary" onclick="openAction('${k._id}', 'approve', '${esc(u.name || 'this user')}')"><i class="fas fa-check"></i> Approve</button>
+                    <button class="btn btn-sm btn-danger-soft" onclick="openAction('${k._id}', 'reject', '${esc(u.name || 'this user')}')"><i class="fas fa-xmark"></i> Reject</button>
+                  </div>` : ''}
+              </div>`;
+            }).join('')
+          : `<div class="card"><div class="empty-state"><div class="empty-icon"><i class="fas fa-id-card"></i></div><div class="empty-title">No KYC submissions</div><div class="empty-hint">Submissions will appear here once users upload their identity documents.</div></div></div>`;
+
+        const p = res.pagination || {};
+        document.getElementById('kycCount').textContent = `${p.total || items.length} submission(s)`;
+        pagination.render('kycPagination', Number(p.currentPage) || 1, Number(p.pages) || 1, 'goToPage');
+        hydrateImages(document.getElementById('kycGrid'));
+      } catch (error) {
+        console.error(error);
+        toast.error('Failed to load KYC submissions');
+      } finally {
+        loading.hide('kycGrid');
+      }
+    }
+
+    function goToPage(page) {
+      state.page = page;
+      loadKyc();
+    }
+
+    async function viewImage(src, label) {
+      const img = document.getElementById('imageModalImg');
+      img.src = '';
+      document.getElementById('imageModalTitle').textContent = label || 'Document';
+      modal.open('imageModal');
+      const objectUrl = await loadAuthedImage(src);
+      if (objectUrl) img.src = objectUrl;
+    }
+
+    function openAction(id, action, name) {
+      actionState = { id, action };
+      document.getElementById('actionTitle').textContent = action === 'approve' ? 'Approve KYC' : 'Reject KYC';
+      document.getElementById('actionSummary').textContent =
+        `You are about to ${action === 'approve' ? 'approve' : 'reject'} the KYC submission for ${name}.`;
+      document.getElementById('actionNote').value = '';
+      document.getElementById('actionConfirmBtn').className = action === 'approve' ? 'btn btn-primary' : 'btn btn-danger-soft';
+      modal.open('actionModal');
+    }
+
+    document.getElementById('actionConfirmBtn').addEventListener('click', async () => {
+      if (!actionState.id) return;
+      const btn = document.getElementById('actionConfirmBtn');
+      btn.disabled = true;
+      try {
+        const res = await api.put(`/kyc/admin/${actionState.id}/${actionState.action}`, {
+          adminNote: document.getElementById('actionNote').value.trim()
+        });
+        if (res.success) {
+          toast.success(res.message || 'KYC updated');
+          modal.close('actionModal');
+          loadKyc();
+        } else {
+          toast.error(res.message || 'Operation failed');
+        }
+      } catch (error) {
+        console.error(error);
+        toast.error('Operation failed');
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById('statusTabs').addEventListener('click', (e) => {
+      const tab = e.target.closest('.tab');
+      if (!tab) return;
+      document.querySelectorAll('#statusTabs .tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      state.status = tab.dataset.status;
+      state.page = 1;
+      loadKyc();
+    });
+
+    // Preselect status from query string, e.g. kyc.html?status=pending
+    const preset = new URLSearchParams(location.search).get('status');
+    if (preset) {
+      const tab = document.querySelector(`#statusTabs .tab[data-status="${esc(preset)}"]`);
+      if (tab) {
+        document.querySelectorAll('#statusTabs .tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        state.status = preset;
+      }
+    }
+    loadKyc();
+  </script>
+</body>
+</html>

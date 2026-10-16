@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Crypto Wallets - BrightVale Finance Admin</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script>window.PAGE_CONFIG = { role: 'admin', active: 'crypto-wallets', title: 'Crypto Deposit Wallets' };</script>
+  <script src="../js/main.js"></script>
+  <style>
+    .wallet-row { display: grid; grid-template-columns: 1.2fr 1.2fr 2.4fr auto; gap: 10px; align-items: end; margin-bottom: 10px; }
+    .notice-box { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 10px; font-size: 13px; line-height: 1.55; margin-bottom: 16px; background: #EFF6FF; border: 1px solid #BFDBFE; color: #1D4ED8; }
+    [data-theme='dark'] .notice-box { background: #0B1B3F; border-color: #1E3A8A; color: #93C5FD; }
+    @media (max-width: 768px) { .wallet-row { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <main class="main-content" id="main">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Crypto Deposit Wallets</h1>
+        <p class="page-subtitle">Configure the deposit wallet addresses shown to users for each coin and network.</p>
+      </div>
+    </div>
+
+    <div class="notice-box"><i class="fas fa-circle-info" style="margin-top:2px;"></i>
+      <span>These are display-only addresses. No on-chain verification occurs until a custody provider is configured.</span>
+    </div>
+
+    <div class="card reveal">
+      <div class="card-title mb-16"><i class="fas fa-wallet"></i> Wallets</div>
+      <div id="walletRows"></div>
+      <button class="btn btn-ghost btn-sm" id="addRowBtn"><i class="fas fa-plus"></i> Add Wallet</button>
+      <hr class="divider">
+      <button class="btn btn-primary" id="saveBtn"><i class="fas fa-floppy-disk"></i> Save Wallets</button>
+    </div>
+  </main>
+
+  <script>
+    if (!auth.requireAdmin()) throw new Error('Admin access required');
+
+    const COIN_OPTIONS = ['BTC', 'ETH', 'USDT', 'USDC', 'SOL', 'BNB', 'LTC', 'XRP'];
+    const NETWORK_SUGGESTIONS = {
+      BTC: 'Bitcoin', ETH: 'ERC-20', USDT: 'TRC-20', USDC: 'ERC-20',
+      SOL: 'Solana', BNB: 'BEP-20', LTC: 'Litecoin', XRP: 'XRP Ledger'
+    };
+
+    function walletRowHtml(w) {
+      w = w || { coin: 'BTC', network: '', address: '' };
+      const opts = COIN_OPTIONS.map(function (c) {
+        return '<option value="' + c + '"' + (c === w.coin ? ' selected' : '') + '>' + c + '</option>';
+      }).join('');
+      return '<div class="wallet-row">' +
+        '<div class="form-group" style="margin-bottom:0;"><label class="form-label">Coin</label><select class="select wr-coin">' + opts + '</select></div>' +
+        '<div class="form-group" style="margin-bottom:0;"><label class="form-label">Network *</label><input type="text" class="input wr-network" placeholder="e.g. ' + (NETWORK_SUGGESTIONS[w.coin] || 'ERC-20') + '" value="' + utils.escapeHtml(w.network || '') + '"></div>' +
+        '<div class="form-group" style="margin-bottom:0;"><label class="form-label">Address *</label><input type="text" class="input wr-address" placeholder="Deposit address" value="' + utils.escapeHtml(w.address || '') + '"></div>' +
+        '<button class="btn btn-ghost btn-sm wr-remove" title="Remove"><i class="fas fa-trash"></i></button>' +
+      '</div>';
+    }
+
+    function bindRows() {
+      document.querySelectorAll('.wr-remove').forEach(function (btn) {
+        btn.onclick = function () { this.closest('.wallet-row').remove(); };
+      });
+    }
+
+    async function loadWallets() {
+      try {
+        const res = await api.get('/crypto/wallets/admin');
+        if (!res || !res.success) { toast.error((res && res.message) || 'Failed to load wallets'); return; }
+        const list = (res.data && res.data.wallets) || [];
+        document.getElementById('walletRows').innerHTML = list.length
+          ? list.map(walletRowHtml).join('')
+          : walletRowHtml({ coin: 'BTC', network: 'Bitcoin', address: '' });
+        bindRows();
+      } catch (e) {
+        document.getElementById('walletRows').innerHTML = walletRowHtml({ coin: 'BTC', network: 'Bitcoin', address: '' });
+        bindRows();
+      }
+    }
+
+    document.getElementById('addRowBtn').addEventListener('click', function () {
+      document.getElementById('walletRows').insertAdjacentHTML('beforeend', walletRowHtml({ coin: 'ETH', network: '', address: '' }));
+      bindRows();
+    });
+
+    document.getElementById('saveBtn').addEventListener('click', async function () {
+      const wallets = [];
+      let valid = true;
+      document.querySelectorAll('.wallet-row').forEach(function (row) {
+        const coin = row.querySelector('.wr-coin').value;
+        const network = row.querySelector('.wr-network').value.trim();
+        const address = row.querySelector('.wr-address').value.trim();
+        if (!network || !address) { valid = false; return; }
+        wallets.push({ coin: coin, network: network, address: address });
+      });
+      if (!valid) { toast.error('Every wallet needs a non-empty network and address'); return; }
+      if (!wallets.length) { toast.error('Add at least one wallet'); return; }
+
+      const btn = this;
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+      try {
+        const res = await api.put('/crypto/wallets', { wallets: wallets });
+        if (res && res.success) toast.success('Wallets saved');
+        else toast.error((res && res.message) || 'Could not save wallets');
+      } catch (e) {
+        toast.error('Could not save wallets. Please try again.');
+      }
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-floppy-disk"></i> Save Wallets';
+    });
+
+    loadWallets();
+  </script>
+</body>
+</html>

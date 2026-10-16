@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cards - BrightVale Finance</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script>window.PAGE_CONFIG = { role: 'user', active: 'cards', title: 'Cards' };</script>
+  <script src="../js/main.js"></script>
+  <style>
+    .cards-grid { display: grid; grid-template-columns: 1.25fr .75fr; gap: 20px; align-items: start; }
+    .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
+    .product-card { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+    .product-card .p-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 19px; background: var(--primary-soft); color: var(--primary); }
+    .product-card .p-name { font-weight: 700; font-size: 15px; color: var(--text); }
+    .product-card .p-desc { font-size: 12px; color: var(--text-2); line-height: 1.5; flex: 1; }
+    .product-card .p-perks { list-style: none; margin: 0; padding: 0; flex: 1; }
+    .product-card .p-perks li { font-size: 12px; color: var(--text-2); line-height: 1.5; padding: 3px 0; }
+    .product-card .p-perks li i { color: var(--success, #16A34A); margin-right: 6px; font-size: 11px; }
+    .app-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 0; }
+    .app-item + .app-item { border-top: 1px dashed var(--border); }
+    .app-item .amt { font-weight: 700; color: var(--text); }
+    .app-item .sub { font-size: 11px; color: var(--text-3); }
+    .notice-box { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 10px; font-size: 13px; line-height: 1.55; margin-bottom: 16px; background: #EFF6FF; border: 1px solid #BFDBFE; color: #1D4ED8; }
+    [data-theme='dark'] .notice-box { background: #0B1B3F; border-color: #1E3A8A; color: #93C5FD; }
+    @media (max-width: 992px) { .cards-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <main class="main-content" id="main">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Cards</h1>
+        <p class="page-subtitle">Apply for a BrightVale card issued by our partner bank.</p>
+      </div>
+    </div>
+
+    <div class="notice-box"><i class="fas fa-circle-info" style="margin-top:2px;"></i>
+      <span>Your card will be issued and shipped after your application is approved. Card numbers are never stored in this app.</span>
+    </div>
+
+    <div class="cards-grid">
+      <div class="card reveal">
+        <div class="card-title mb-16"><i class="fas fa-credit-card"></i> Card Products</div>
+        <div id="productsWrap"><div class="loading"><div class="spinner"></div></div></div>
+      </div>
+
+      <div class="card reveal">
+        <div class="card-header">
+          <div class="card-title">My Applications</div>
+        </div>
+        <div id="appsWrap"><div class="loading"><div class="spinner"></div></div></div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    if (!auth.isLoggedIn()) {
+      window.location.href = '../login.html';
+    }
+
+    const STATUS_BADGE = { pending: 'badge-warning', approved: 'badge-success', rejected: 'badge-danger' };
+
+    async function loadProducts() {
+      const wrap = document.getElementById('productsWrap');
+      try {
+        const res = await api.get('/cards/products');
+        if (!res || !res.success) { wrap.innerHTML = '<div class="text-small text-muted">Could not load card products.</div>'; return; }
+        const list = res.data || [];
+        if (!list.length) {
+          wrap.innerHTML = '<div class="empty-state"><div class="empty-icon"><i class="fas fa-credit-card"></i></div><div class="empty-title">No card products available</div><div class="empty-hint">Please check back soon.</div></div>';
+          return;
+        }
+        wrap.innerHTML = '<div class="product-grid">' + list.map(function (p, i) {
+          const fee = Number(p.annualFee) > 0 ? utils.formatCurrency(p.annualFee) + ' annual fee' : 'No annual fee';
+          const perks = Array.isArray(p.perks) ? p.perks : [];
+          return '<div class="product-card">' +
+            '<div class="p-icon"><i class="fas fa-credit-card"></i></div>' +
+            '<div class="p-name">' + utils.escapeHtml(p.name || 'Card') + '</div>' +
+            '<div><span class="badge badge-primary">' + utils.escapeHtml(p.type || 'Card') + '</span></div>' +
+            '<div class="p-desc" style="flex:0;"><b style="color:var(--text);">' + fee + '</b></div>' +
+            (p.description ? '<div class="p-desc">' + utils.escapeHtml(p.description) + '</div>' : '') +
+            (perks.length ? '<ul class="p-perks">' + perks.map(function (perk) { return '<li><i class="fas fa-check"></i> ' + utils.escapeHtml(perk) + '</li>'; }).join('') + '</ul>' : '') +
+            '<button class="btn btn-primary btn-block" id="applyBtn' + i + '"><i class="fas fa-paper-plane"></i> Apply</button>' +
+          '</div>';
+        }).join('') + '</div>';
+        list.forEach(function (p, i) {
+          document.getElementById('applyBtn' + i).addEventListener('click', function () { applyFor(p, this); });
+        });
+      } catch (e) {
+        wrap.innerHTML = '<div class="text-small text-muted">Could not load card products.</div>';
+      }
+    }
+
+    async function applyFor(product, btn) {
+      btn.disabled = true;
+      const orig = btn.innerHTML;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Applying...';
+      try {
+        const res = await api.post('/cards/apply', { productId: product._id || product.id });
+        if (res && res.success) {
+          toast.success('Application submitted — pending review');
+          loadApps();
+        } else if (kycGate.isKycError(res)) {
+          kycGate.show(res.message);
+        } else {
+          toast.error((res && res.message) || 'Application failed');
+        }
+      } catch (e) {
+        toast.error('Application failed. Please try again.');
+      }
+      btn.disabled = false;
+      btn.innerHTML = orig;
+    }
+
+    async function loadApps() {
+      const wrap = document.getElementById('appsWrap');
+      try {
+        const res = await api.get('/cards');
+        if (!res || !res.success) { wrap.innerHTML = '<div class="text-small text-muted">Could not load applications.</div>'; return; }
+        const list = res.data || [];
+        if (!list.length) {
+          wrap.innerHTML = '<div class="empty-state" style="padding:20px 0;"><div class="empty-icon"><i class="fas fa-credit-card"></i></div><div class="empty-hint">No card applications yet. Choose a product to apply.</div></div>';
+          return;
+        }
+        wrap.innerHTML = list.map(function (a) {
+          const productName = (a.productId && (a.productId.name || a.productId)) || 'Card';
+          const when = a.createdAt ? utils.formatDate(a.createdAt) : '';
+          return '<div class="app-item">' +
+            '<div><div class="amt">' + utils.escapeHtml(typeof productName === 'string' ? productName : 'Card') + '</div>' +
+            '<div class="sub">' + (when ? 'Applied ' + when : '') + (a.rejectionReason ? ' &middot; ' + utils.escapeHtml(a.rejectionReason) : '') + '</div></div>' +
+            '<span class="badge ' + (STATUS_BADGE[a.status] || 'badge-muted') + '">' + utils.escapeHtml(a.status || 'pending') + '</span>' +
+          '</div>';
+        }).join('');
+      } catch (e) {
+        wrap.innerHTML = '<div class="text-small text-muted">Could not load applications.</div>';
+      }
+    }
+
+    loadProducts();
+    loadApps();
+  </script>
+</body>
+</html>

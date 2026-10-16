@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Deposit Funds - BrightVale Finance</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script>window.PAGE_CONFIG = { role: 'user', active: 'deposit', title: 'Deposit Funds' };</script>
+  <script src="../js/main.js"></script>
+  <style>
+    .dep-grid { display: grid; grid-template-columns: 1.25fr .75fr; gap: 20px; align-items: start; }
+    .balance-hero { display: flex; align-items: center; justify-content: space-between; gap: 16px; background: linear-gradient(135deg, var(--primary) 0%, #1D4ED8 100%); border-radius: var(--radius); padding: 22px 24px; color: #fff; }
+    .balance-hero .label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; opacity: .85; }
+    .balance-hero .value { font-family: var(--font-display); font-size: 30px; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .balance-hero .icon { width: 46px; height: 46px; border-radius: 12px; background: rgba(255,255,255,.16); display: flex; align-items: center; justify-content: center; font-size: 19px; }
+    .wallet-box { background: var(--surface-2); border: 1px dashed var(--border); border-radius: var(--radius-sm); padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .wallet-box code { font-size: 12.5px; color: var(--text); word-break: break-all; }
+    .step-item { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; }
+    .step-item + .step-item { border-top: 1px dashed var(--border); }
+    .step-num { width: 26px; height: 26px; border-radius: 50%; background: var(--primary-soft); color: var(--primary); font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .step-item b { display: block; font-size: 13px; color: var(--text); }
+    .step-item span { font-size: 12px; color: var(--text-2); line-height: 1.5; }
+    .file-drop { border: 2px dashed var(--border); border-radius: var(--radius-sm); padding: 22px; text-align: center; color: var(--text-2); font-size: 13px; cursor: pointer; transition: border-color .15s ease; background: var(--surface-2); }
+    .file-drop:hover { border-color: var(--primary); }
+    .file-drop.has-file { border-color: var(--success); color: var(--success); }
+    .file-drop input { display: none; }
+    .dep-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 0; }
+    .dep-item + .dep-item { border-top: 1px dashed var(--border); }
+    .dep-item .amt { font-family: var(--font-display); font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+    .dep-item .when { font-size: 11px; color: var(--text-3); }
+    .method-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+    .method-card { border: 2px solid var(--border); border-radius: var(--radius-sm); padding: 14px; text-align: center; cursor: pointer; background: var(--surface-2); transition: all .15s ease; }
+    .method-card i { font-size: 20px; color: var(--text-3); display: block; margin-bottom: 6px; }
+    .method-card b { font-size: 13px; color: var(--text); display: block; }
+    .method-card span { font-size: 11px; color: var(--text-3); }
+    .method-card.active { border-color: var(--primary); background: var(--primary-soft); }
+    .method-card.active i { color: var(--primary); }
+    .ach-detail { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 0; }
+    .ach-detail + .ach-detail { border-top: 1px dashed var(--border); }
+    .ach-detail .lbl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--text-3); }
+    .ach-detail .val { font-size: 13.5px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; word-break: break-all; }
+    .kyc-banner { display: flex; gap: 12px; align-items: center; padding: 14px 18px; border-radius: var(--radius); background: var(--warning-soft, #FFFBEB); border: 1px solid var(--warning, #D97706); color: var(--warning, #D97706); font-size: 13.5px; line-height: 1.55; margin-bottom: 20px; }
+    .kyc-banner a { color: inherit; font-weight: 700; text-decoration: underline; white-space: nowrap; }
+    @media (max-width: 992px) { .dep-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <main class="main-content" id="main">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Deposit Funds</h1>
+        <p class="page-subtitle">Add funds to your BrightVale Finance account via Bitcoin or bank transfer (ACH). Deposits are credited after verification.</p>
+      </div>
+    </div>
+
+    <div class="kyc-banner" id="kycBanner" style="display:none;"><i class="fas fa-id-card"></i>
+      <span>Verify your identity to unlock transfers, withdrawals, investing, loans and cards. <a href="kyc.html">Verify now</a></span>
+    </div>
+
+    <div class="balance-hero mb-24 reveal">
+      <div>
+        <div class="label">Available Balance</div>
+        <div class="value" id="balanceValue">$0.00</div>
+      </div>
+      <div class="icon"><i class="fas fa-wallet"></i></div>
+    </div>
+
+    <div class="dep-grid">
+      <div class="card reveal">
+        <div class="card-title mb-16"><i class="fas fa-download"></i> Make a Deposit</div>
+        <form id="depositForm">
+          <div class="form-group">
+            <label class="form-label">Amount (USD) *</label>
+            <input type="number" class="input" id="amount" min="1" step="0.01" placeholder="Enter amount" required>
+            <div class="form-hint mt-8" id="minDepositHint">Minimum deposit: loading...</div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Deposit Method</label>
+            <div class="method-row" id="methodRow">
+              <div class="method-card active" data-method="btc">
+                <i class="fab fa-bitcoin"></i>
+                <b>Bitcoin (BTC)</b>
+                <span>Send BTC to our wallet</span>
+              </div>
+              <div class="method-card" data-method="ach" id="achMethodCard">
+                <i class="fas fa-building-columns"></i>
+                <b>Bank Transfer (ACH)</b>
+                <span>From your external bank account</span>
+              </div>
+            </div>
+          </div>
+
+          <div id="btcPane">
+          <div class="form-group">
+            <label class="form-label">Send BTC to this address</label>
+            <div class="wallet-box">
+              <code id="btcAddress">Loading wallet address...</code>
+              <button type="button" class="btn btn-ghost btn-xs" id="copyBtcBtn" onclick="copyBtc()"><i class="fas fa-copy"></i> Copy</button>
+            </div>
+            <div class="form-hint mt-8">Send the equivalent amount in BTC, then upload your proof of payment below.</div>
+          </div>
+          </div>
+
+          <div id="achPane" style="display:none;">
+            <div class="form-group">
+              <label class="form-label">Your BrightVale account details</label>
+              <div class="wallet-box" style="display:block;padding:6px 16px;">
+                <div class="ach-detail">
+                  <div><div class="lbl">Account Number</div><div class="val" id="achAccountNumber">Loading...</div></div>
+                  <button type="button" class="btn btn-ghost btn-xs" onclick="copyAchAccount()"><i class="fas fa-copy"></i> Copy</button>
+                </div>
+                <div class="ach-detail">
+                  <div><div class="lbl">Account Name</div><div class="val" id="achAccountName">—</div></div>
+                </div>
+                <div class="ach-detail">
+                  <div><div class="lbl">Institution</div><div class="val">BrightVale Finance</div></div>
+                </div>
+              </div>
+              <div class="form-hint mt-8">Add BrightVale Finance as a recipient using these details from your bank's app or website, then upload your transfer confirmation below.</div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Proof of Payment *</label>
+            <label class="file-drop" id="fileDrop">
+              <i class="fas fa-cloud-arrow-up" style="font-size:22px;display:block;margin-bottom:8px;"></i>
+              <span id="fileDropText">Click to upload screenshot or receipt (JPG, PNG, WebP — max 10MB)</span>
+              <input type="file" id="proofFile" accept="image/jpeg,image/png,image/webp,application/pdf">
+            </label>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-block" id="submitBtn"><i class="fas fa-paper-plane"></i> Submit Deposit Request</button>
+        </form>
+      </div>
+
+      <div>
+        <div class="card mb-16 reveal">
+          <div class="card-title mb-8"><i class="fas fa-circle-info"></i> How it works</div>
+          <div class="step-item"><div class="step-num">1</div><div><b>Enter the amount</b><span>Type the USD amount you want to deposit.</span></div></div>
+          <div class="step-item"><div class="step-num">2</div><div><b>Send your BTC</b><span>Transfer the BTC equivalent to the wallet address shown.</span></div></div>
+          <div class="step-item"><div class="step-num">3</div><div><b>Upload proof</b><span>Attach a screenshot or receipt of the transaction.</span></div></div>
+          <div class="step-item"><div class="step-num">4</div><div><b>Get credited</b><span>Our team verifies and credits your balance, usually within 24 hours.</span></div></div>
+        </div>
+
+        <div class="card reveal">
+          <div class="card-header">
+            <div class="card-title">Recent Deposits</div>
+            <a href="transactions.html" class="btn btn-ghost btn-xs">View all</a>
+          </div>
+          <div id="recentDeposits"><div class="text-small text-muted">Loading...</div></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    if (!auth.isLoggedIn()) {
+      window.location.href = '../login.html';
+    }
+
+    const STATUS_BADGE = { pending: 'badge-warning', approved: 'badge-success', completed: 'badge-success', declined: 'badge-danger' };
+    let minimumDeposit = 0;
+    let depositMethod = 'btc';
+    let achProfile = null;
+
+    document.getElementById('methodRow').addEventListener('click', function (e) {
+      const card = e.target.closest('.method-card');
+      if (!card) return;
+      document.querySelectorAll('.method-card').forEach(function (c) { c.classList.remove('active'); });
+      card.classList.add('active');
+      depositMethod = card.dataset.method;
+      document.getElementById('btcPane').style.display = depositMethod === 'btc' ? '' : 'none';
+      document.getElementById('achPane').style.display = depositMethod === 'ach' ? '' : 'none';
+    });
+
+    async function loadAchDetails() {
+      try {
+        const settingsRes = await api.get('/settings');
+        const show = !!(settingsRes && settingsRes.success && settingsRes.data && settingsRes.data.showBankDetails);
+        if (!show) {
+          document.getElementById('achMethodCard').style.display = 'none';
+          return;
+        }
+        const profileRes = await api.get('/user/profile');
+        if (profileRes && profileRes.success && profileRes.data) {
+          achProfile = profileRes.data;
+          document.getElementById('achAccountNumber').textContent = profileRes.data.accountNumber || 'Unavailable';
+          document.getElementById('achAccountName').textContent = profileRes.data.name || '—';
+        } else {
+          document.getElementById('achAccountNumber').textContent = 'Unavailable';
+        }
+      } catch (e) {
+        document.getElementById('achMethodCard').style.display = 'none';
+      }
+    }
+
+    window.copyAchAccount = function () {
+      const text = (document.getElementById('achAccountNumber').textContent || '').trim();
+      if (!text || text === 'Loading...' || text === 'Unavailable') return;
+      const done = () => toast.success('Account number copied');
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
+      } else {
+        fallbackCopy(text, done);
+      }
+    };
+
+    async function checkKycBanner() {
+      try {
+        const res = await api.get('/kyc');
+        const status = (res && res.data && (res.data.kycStatus || res.data.status)) || '';
+        if (status !== 'verified') {
+          document.getElementById('kycBanner').style.display = 'flex';
+        }
+      } catch (e) { /* banner stays hidden */ }
+    }
+
+    async function loadMinDeposit() {
+      try {
+        const res = await api.get('/settings');
+        if (res && res.success && res.data && Number(res.data.minimumDeposit) > 0) {
+          minimumDeposit = Number(res.data.minimumDeposit);
+          document.getElementById('minDepositHint').textContent = 'Minimum deposit: ' + utils.formatCurrency(minimumDeposit);
+          document.getElementById('amount').min = minimumDeposit;
+        } else {
+          document.getElementById('minDepositHint').textContent = 'Enter the amount you wish to deposit.';
+        }
+      } catch (e) {
+        document.getElementById('minDepositHint').textContent = 'Enter the amount you wish to deposit.';
+      }
+    }
+
+    async function loadBalance() {
+      try {
+        const res = await api.get('/user/profile');
+        if (res && res.success && res.data) {
+          document.getElementById('balanceValue').textContent = utils.formatCurrency(res.data.balanceUSD || 0);
+        }
+      } catch (e) { /* keep default */ }
+    }
+
+    async function loadBtcWallet() {
+      try {
+        const res = await api.get('/settings/btc-wallet');
+        if (res && res.success && res.data && res.data.btcWalletAddress) {
+          document.getElementById('btcAddress').textContent = res.data.btcWalletAddress;
+        } else {
+          document.getElementById('btcAddress').textContent = 'Wallet address unavailable — contact support';
+        }
+      } catch (e) {
+        document.getElementById('btcAddress').textContent = 'Wallet address unavailable — contact support';
+      }
+    }
+
+    window.copyBtc = function () {
+      const text = document.getElementById('btcAddress').textContent.trim();
+      if (!text || text.indexOf('unavailable') !== -1) return;
+      const done = () => toast.success('BTC address copied');
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
+      } else {
+        fallbackCopy(text, done);
+      }
+    };
+
+    function fallbackCopy(text, done) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); done(); } catch (e) { toast.error('Copy failed'); }
+      document.body.removeChild(ta);
+    }
+
+    document.getElementById('proofFile').addEventListener('change', function () {
+      const drop = document.getElementById('fileDrop');
+      if (this.files && this.files[0]) {
+        drop.classList.add('has-file');
+        document.getElementById('fileDropText').textContent = this.files[0].name + ' — click to change';
+      } else {
+        drop.classList.remove('has-file');
+        document.getElementById('fileDropText').textContent = 'Click to upload screenshot or receipt (JPG, PNG, WebP — max 10MB)';
+      }
+    });
+
+    document.getElementById('depositForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const amount = document.getElementById('amount').value;
+      const file = document.getElementById('proofFile').files[0];
+      if (!amount || Number(amount) <= 0) { toast.error('Enter a valid amount'); return; }
+      if (minimumDeposit > 0 && Number(amount) < minimumDeposit) {
+        toast.error('Minimum deposit is ' + utils.formatCurrency(minimumDeposit));
+        return;
+      }
+      if (!file) { toast.error('Please upload your proof of payment'); return; }
+
+      const fd = new FormData();
+      fd.append('amount', amount);
+      fd.append('btcProof', file);
+
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+      try {
+        const res = await api.post('/deposits', fd, true);
+        if (res && res.success) {
+          toast.success('Deposit request submitted — pending verification');
+          document.getElementById('depositForm').reset();
+          document.getElementById('fileDrop').classList.remove('has-file');
+          document.getElementById('fileDropText').textContent = 'Click to upload screenshot or receipt (JPG, PNG, WebP — max 10MB)';
+          loadRecent();
+          loadBalance();
+        } else {
+          toast.error((res && res.message) || 'Deposit failed');
+        }
+      } catch (err) {
+        toast.error('Deposit failed. Please try again.');
+      }
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Deposit Request';
+    });
+
+    async function loadRecent() {
+      const wrap = document.getElementById('recentDeposits');
+      try {
+        const res = await api.get('/deposits?limit=6');
+        if (!res || !res.success) { wrap.innerHTML = '<div class="text-small text-muted">Could not load deposits.</div>'; return; }
+        const list = res.data || [];
+        if (!list.length) {
+          wrap.innerHTML = '<div class="empty-state" style="padding:20px 0;"><div class="empty-icon"><i class="fas fa-inbox"></i></div><div class="empty-hint">No deposits yet.</div></div>';
+          return;
+        }
+        wrap.innerHTML = list.map(function (d) {
+          const when = d.createdAt ? new Date(d.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+          return '<div class="dep-item">' +
+            '<div><div class="amt">' + utils.formatCurrency(d.amount) + '</div><div class="when">' + when + '</div></div>' +
+            '<span class="badge ' + (STATUS_BADGE[d.status] || 'badge-muted') + '">' + utils.escapeHtml(d.status || 'pending') + '</span>' +
+          '</div>';
+        }).join('');
+      } catch (e) {
+        wrap.innerHTML = '<div class="text-small text-muted">Could not load deposits.</div>';
+      }
+    }
+
+    loadBalance();
+    loadBtcWallet();
+    loadMinDeposit();
+    loadAchDetails();
+    checkKycBanner();
+    loadRecent();
+  </script>
+</body>
+</html>
