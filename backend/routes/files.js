@@ -6,7 +6,7 @@ const { auth, adminOnly } = require('../middleware/auth');
 const KYC = require('../models/KYC');
 const Deposit = require('../models/Deposit');
 
-const UPLOADS_DIR = path.join(__dirname, '..', 'uploads');
+const UPLOADS_DIR = path.resolve(process.env.UPLOADS_DIR || path.join(__dirname, '..', 'uploads'));
 
 function sendUpload(res, subdir, filename) {
   const safeName = path.basename(filename);
@@ -18,7 +18,7 @@ function sendUpload(res, subdir, filename) {
 }
 
 // @route   GET /api/files/kyc/:filename
-// @desc    Serve a KYC image (owner of the KYC doc or admin)
+// @desc    Serve a KYC document (owner of the KYC doc or admin)
 // @access  Private
 router.get('/kyc/:filename', auth, async (req, res) => {
   try {

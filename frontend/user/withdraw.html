@@ -31,6 +31,22 @@
     .wd-item .amt { font-family: var(--font-display); font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
     .wd-item .when { font-size: 11px; color: var(--text-3); }
     @media (max-width: 992px) { .wd-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 640px) {
+      .main-content { overflow-x: hidden; }
+      .balance-hero { padding: 18px 16px; }
+      .balance-hero .value { font-size: 26px; overflow-wrap: anywhere; }
+      .balance-hero > div:first-child { min-width: 0; }
+      .balance-hero .icon { width: 40px; height: 40px; flex-shrink: 0; }
+      .method-row { grid-template-columns: 1fr; }
+      .method-card { padding: 14px 12px; }
+      .card-header { align-items: center; }
+      .card-header .card-title { min-width: 0; }
+      .info-item span { overflow-wrap: anywhere; }
+      .wd-item { align-items: flex-start; }
+      .wd-item > div { min-width: 0; }
+      .wd-item .amt { overflow-wrap: anywhere; }
+      .wd-item .badge { flex-shrink: 0; }
+    }
   </style>
 </head>
 <body>

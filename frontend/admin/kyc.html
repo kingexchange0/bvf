@@ -42,6 +42,8 @@
       </div>
       <div class="modal-body">
         <img id="imageModalImg" src="" alt="KYC document" style="width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+        <iframe id="imageModalPdf" title="KYC document PDF" style="display:none;width:100%;height:70vh;border:0;"></iframe>
+        <p id="imageModalError" class="text-small text-muted" style="display:none;"></p>
       </div>
       <div class="modal-footer">
         <button class="btn btn-ghost" onclick="modal.close('imageModal')">Close</button>
@@ -92,26 +94,49 @@
     // Bearer token and hand the <img> an object URL.
     const fileUrl = (p) => {
       if (!p) return '';
-      const base = String(p).split('/').pop();
+      const base = String(p).replace(/\\/g, '/').split('/').pop();
       return `${API_BASE_URL}/files/kyc/${encodeURIComponent(base)}`;
     };
 
-    async function loadAuthedImage(url) {
-      try {
-        const res = await fetch(url, { headers: api.getHeaders() });
-        if (!res.ok) return '';
-        const blob = await res.blob();
-        return URL.createObjectURL(blob);
-      } catch (e) { return ''; }
+    async function loadAuthedFile(url) {
+      const res = await fetch(url, { headers: api.getHeaders() });
+      if (!res.ok) {
+        let message = `File request failed (${res.status})`;
+        try {
+          const error = await res.json();
+          if (error.message) message = error.message;
+        } catch (e) { /* response may not be JSON */ }
+        throw new Error(message);
+      }
+
+      const blob = await res.blob();
+      const type = blob.type || res.headers.get('content-type') || '';
+      if (!type.startsWith('image/') && type !== 'application/pdf') {
+        throw new Error('Unsupported document format');
+      }
+      return { url: URL.createObjectURL(blob), type };
     }
 
     async function hydrateImages(root) {
       const imgs = (root || document).querySelectorAll('img[data-authed-src]');
-      imgs.forEach(async function (img) {
-        const objectUrl = await loadAuthedImage(img.dataset.authedSrc);
-        if (objectUrl) img.src = objectUrl;
-        else img.alt = 'Document unavailable';
-      });
+      await Promise.all(Array.from(imgs).map(async function (img) {
+        try {
+          const file = await loadAuthedFile(img.dataset.authedSrc);
+          if (file.type === 'application/pdf') {
+            const placeholder = document.createElement('div');
+            placeholder.className = 'text-small text-muted';
+            placeholder.style.cssText = 'aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;border:1px solid var(--border);border-radius:8px;background:var(--surface-2);';
+            placeholder.textContent = 'PDF document — click to view';
+            img.replaceWith(placeholder);
+            return;
+          }
+          img.src = file.url;
+        } catch (error) {
+          console.error('Could not load KYC document:', error);
+          img.alt = 'Document unavailable';
+          img.title = error.message;
+        }
+      }));
     }
 
     const DOC_LABELS = { frontImage: 'Front of ID', backImage: 'Back of ID', selfieImage: 'Selfie', ssnImage: 'SSN Picture' };
@@ -205,10 +230,29 @@
     async function viewImage(src, label) {
       const img = document.getElementById('imageModalImg');
       img.src = '';
+      img.style.display = 'none';
+      const pdf = document.getElementById('imageModalPdf');
+      pdf.removeAttribute('src');
+      pdf.style.display = 'none';
+      const error = document.getElementById('imageModalError');
+      error.textContent = '';
+      error.style.display = 'none';
       document.getElementById('imageModalTitle').textContent = label || 'Document';
       modal.open('imageModal');
-      const objectUrl = await loadAuthedImage(src);
-      if (objectUrl) img.src = objectUrl;
+      try {
+        const file = await loadAuthedFile(src);
+        if (file.type === 'application/pdf') {
+          pdf.src = file.url;
+          pdf.style.display = 'block';
+        } else {
+          img.src = file.url;
+          img.style.display = 'block';
+        }
+      } catch (loadError) {
+        console.error('Could not open KYC document:', loadError);
+        error.textContent = `Could not load document: ${loadError.message}`;
+        error.style.display = 'block';
+      }
     }
 
     function openAction(id, action, name) {
