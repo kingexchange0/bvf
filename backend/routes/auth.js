@@ -274,7 +274,10 @@ router.post('/login', authLimiter, async (req, res) => {
 
       const r = await sendLoginOtp(user._id, otp);
       if (!r || !r.success) {
-        return res.status(500).json({ success: false, message: 'Email delivery is not configured. Contact support.' });
+        return res.status(503).json({
+          success: false,
+          message: 'Unable to send a sign-in code right now. Please try again or contact support if this continues.'
+        });
       }
       return res.json({
         success: true,

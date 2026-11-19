@@ -176,8 +176,10 @@ async function migrateSettingsBranding() {
     changed = true;
   }
 
-  if (typeof settings.supportEmail === 'string' && legacyBrandPattern.test(settings.supportEmail)) {
-    settings.supportEmail = 'support@brightvale.finance';
+  const legacySupportEmailPattern = /^(?:support@brightvale\.(?:com|finance)|.*@crestcoin\.com)$/i;
+  if (typeof settings.supportEmail === 'string'
+    && (legacyBrandPattern.test(settings.supportEmail) || legacySupportEmailPattern.test(settings.supportEmail.trim()))) {
+    settings.supportEmail = 'support@brightvalefinance.com';
     changed = true;
   }
 

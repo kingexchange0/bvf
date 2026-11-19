@@ -115,7 +115,7 @@
           <button type="submit" class="btn btn-primary" id="testEmailBtn" style="width: 100%;"><i class="fas fa-paper-plane"></i> Send Test Email</button>
         </form>
         <div style="background: var(--surface-2); border-left: 4px solid var(--primary); padding: 12px 14px; border-radius: 0 8px 8px 0; margin-top: 12px;">
-          <div class="text-small" style="color: var(--text-2);"><i class="fas fa-info-circle" style="margin-right: 6px;"></i>Email is configured via backend environment variables only (<code>EMAIL_PROVIDER</code>, credentials, sender). Edit <code>backend/.env</code> and restart the server to change providers.</div>
+          <div class="text-small" style="color: var(--text-2);"><i class="fas fa-info-circle" style="margin-right: 6px;"></i>Email is configured via backend environment variables only (<code>EMAIL_PROVIDER</code>, credentials, sender). Update <code>backend/.env</code> for local development or the backend host's environment settings in production, then restart/redeploy.</div>
         </div>
       </div>
     </div>

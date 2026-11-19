@@ -11,7 +11,7 @@ const settingsSchema = new mongoose.Schema({
   },
   supportEmail: {
     type: String,
-    default: 'support@brightvale.com'
+    default: 'support@brightvalefinance.com'
   },
   telegramLink: {
     type: String,

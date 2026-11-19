@@ -21,7 +21,7 @@ function getEmailConfig() {
     fromEmail: (process.env.EMAIL_FROM_EMAIL || '').trim().toLowerCase(),
     brevo: {
       host: process.env.EMAIL_BREVO_HOST || 'smtp-relay.brevo.com',
-      port: parseInt(process.env.EMAIL_BREVO_PORT, 10) || 587,
+      port: parseInt(process.env.EMAIL_BREVO_PORT, 10) || 465,
       login: (process.env.EMAIL_BREVO_LOGIN || '').trim(),
       smtpKey: process.env.EMAIL_BREVO_SMTP_KEY || ''
     },
@@ -248,13 +248,15 @@ const sendWelcomeEmail = (userId, accountNumber) => fire(sendEmailToUser(
   { dedupeKey: `welcome:${userId}` }
 ));
 
-const sendLoginOtp = (userId, code) => fire(sendEmailToUser(
+const sendLoginOtp = (userId, code) => sendEmailToUser(
   userId,
   'Your BrightVale Finance sign-in code',
   layout('Sign-in verification', `<p>Hi {{name}},</p><p>Your sign-in code is:</p><p style="font-size:28px;letter-spacing:6px;font-weight:700;color:#4C1D95;">${code}</p><p>This code expires in <b>10 minutes</b>. If you did not attempt to sign in, change your password immediately.</p>`),
-  `Your BrightVale Finance sign-in code is ${code}. It expires in 10 minutes.`,
-  { dedupeKey: `loginotp:${userId}` }
-));
+  `Your BrightVale Finance sign-in code is ${code}. It expires in 10 minutes.`
+).catch((error) => {
+  console.error('Login OTP email helper error:', error.message);
+  return { success: false, error: 'Email delivery failed' };
+});
 
 const sendSecurityAlert = (userId, title, detailHtml) => fire(sendEmailToUser(
   userId,

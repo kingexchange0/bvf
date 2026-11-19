@@ -2247,7 +2247,7 @@ body { animation: ccFadeIn .3s ease; }
   .main-content,
   body.sidebar-collapsed .main-content {
     margin-left: 0;
-    width: 100%;
+    width: auto;
   }
 
   .topbar,
@@ -2287,7 +2287,12 @@ body { animation: ccFadeIn .3s ease; }
 
 @media (max-width: 768px) {
   .main-content {
-    padding: 16px 12px;
+    padding: 16px clamp(16px, 5vw, 24px);
+  }
+
+  .landing-page .container {
+    padding-right: clamp(16px, 5vw, 24px);
+    padding-left: clamp(16px, 5vw, 24px);
   }
 
   .topbar {
