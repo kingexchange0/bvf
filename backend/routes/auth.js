@@ -448,6 +448,11 @@ router.post('/verify-login-otp', authLimiter, async (req, res) => {
     user.loginOtpHash = null;
     user.loginOtpExpires = null;
     user.loginOtpAttempts = 0;
+    // Completing a login OTP proves access to the account's current email address.
+    user.isEmailVerified = true;
+    user.emailVerificationCodeHash = null;
+    user.emailVerificationExpires = null;
+    user.emailVerificationAttempts = 0;
     user.failedLoginAttempts = 0;
     user.lockUntil = null;
     user.lastLogin = new Date();
