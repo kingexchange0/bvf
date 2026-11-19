@@ -19,6 +19,11 @@ if (dns.getServers().every(s => /^(127\.0\.0\.1|::1)$/.test(s))) {
 
 const app = express();
 
+// Render forwards client IPs through one trusted proxy.
+if (process.env.RENDER) {
+  app.set('trust proxy', 1);
+}
+
 // Security middleware
 app.use(helmet());
 app.use(cors({

@@ -1,6 +1,6 @@
 // BrightVale Finance — centralized email service.
 //
-// Provider is selected with EMAIL_PROVIDER (brevo | resend). All credentials
+// Provider is selected with EMAIL_PROVIDER (brevo | brevo_api | resend). All credentials
 // and sender details come from environment variables — never from the
 // database, never from the client, never hardcoded. There is deliberately
 // NO fallback/test transport: if the configured provider is not set up,
@@ -23,7 +23,8 @@ function getEmailConfig() {
       host: process.env.EMAIL_BREVO_HOST || 'smtp-relay.brevo.com',
       port: parseInt(process.env.EMAIL_BREVO_PORT, 10) || 465,
       login: (process.env.EMAIL_BREVO_LOGIN || '').trim(),
-      smtpKey: process.env.EMAIL_BREVO_SMTP_KEY || ''
+      smtpKey: process.env.EMAIL_BREVO_SMTP_KEY || '',
+      apiKey: process.env.EMAIL_BREVO_API_KEY || ''
     },
     resend: {
       apiKey: process.env.EMAIL_RESEND_API_KEY || ''
@@ -36,8 +37,8 @@ function validateEmailConfig() {
   const cfg = getEmailConfig();
   const errors = [];
 
-  if (!['brevo', 'resend'].includes(cfg.provider)) {
-    errors.push(`EMAIL_PROVIDER must be "brevo" or "resend" (got "${cfg.provider || '(unset)'})"`);
+  if (!['brevo', 'brevo_api', 'resend'].includes(cfg.provider)) {
+    errors.push(`EMAIL_PROVIDER must be "brevo", "brevo_api" or "resend" (got "${cfg.provider || '(unset)'})"`);
   }
   if (!cfg.fromEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cfg.fromEmail)) {
     errors.push('EMAIL_FROM_EMAIL is missing or invalid');
@@ -45,6 +46,9 @@ function validateEmailConfig() {
   if (cfg.provider === 'brevo') {
     if (!cfg.brevo.login) errors.push('EMAIL_BREVO_LOGIN is required for Brevo (your Brevo account email)');
     if (!cfg.brevo.smtpKey) errors.push('EMAIL_BREVO_SMTP_KEY is required for Brevo');
+  }
+  if (cfg.provider === 'brevo_api' && !cfg.brevo.apiKey) {
+    errors.push('EMAIL_BREVO_API_KEY is required for Brevo API');
   }
   if (cfg.provider === 'resend') {
     if (!cfg.resend.apiKey) errors.push('EMAIL_RESEND_API_KEY is required for Resend');
@@ -96,6 +100,29 @@ async function sendViaBrevo({ from, to, subject, text, html }) {
   return info.messageId;
 }
 
+async function sendViaBrevoApi({ to, subject, text, html }) {
+  const cfg = getEmailConfig();
+  const response = await axios.post(
+    'https://api.brevo.com/v3/smtp/email',
+    {
+      sender: { name: cfg.fromName, email: cfg.fromEmail },
+      to: [{ email: to }],
+      subject,
+      htmlContent: html,
+      textContent: text
+    },
+    {
+      headers: {
+        'api-key': cfg.brevo.apiKey,
+        'Content-Type': 'application/json',
+        Accept: 'application/json'
+      },
+      timeout: 15000
+    }
+  );
+  return response.data && response.data.messageId;
+}
+
 async function sendViaResend({ from, to, subject, text, html }) {
   const cfg = getEmailConfig();
   const response = await axios.post(
@@ -138,9 +165,13 @@ function sendEmail(to, subject, html, text, { dedupeKey = null, dedupeMs = DEDUP
 
     let messageId;
     try {
-      messageId = config.provider === 'resend'
-        ? await sendViaResend(payload)
-        : await sendViaBrevo(payload);
+      if (config.provider === 'resend') {
+        messageId = await sendViaResend(payload);
+      } else if (config.provider === 'brevo_api') {
+        messageId = await sendViaBrevoApi(payload);
+      } else {
+        messageId = await sendViaBrevo(payload);
+      }
     } catch (error) {
       // Never log credentials or full request payloads
       const status = error.response && error.response.status;

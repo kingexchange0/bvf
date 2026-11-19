@@ -71,10 +71,12 @@ Copy `backend/.env.example` to `backend/.env` and fill in:
 Email is configured **via environment variables only** — no test fallback, no admin SMTP form:
 
 ```env
-EMAIL_PROVIDER=brevo                 # brevo | resend
+EMAIL_PROVIDER=brevo_api             # brevo (SMTP) | brevo_api (HTTPS) | resend
 EMAIL_FROM_NAME=BrightVale Finance
 EMAIL_FROM_EMAIL=noreply@yourdomain.com
-# Brevo:
+# Brevo HTTPS API (requires an API key, separate from the SMTP key):
+EMAIL_BREVO_API_KEY=your-brevo-api-key
+# Brevo SMTP (only when EMAIL_PROVIDER=brevo):
 EMAIL_BREVO_LOGIN=your@email.com
 EMAIL_BREVO_SMTP_KEY=xsmtpsib-...
 # Resend:
